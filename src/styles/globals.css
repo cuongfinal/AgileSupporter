@@ -1,0 +1,105 @@
+/* Neutral slate + indigo palette. Tailwind without preflight; the small base reset below + components/kit.tsx carry all component styles. */
+@layer theme, base, components, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+
+@theme inline {
+  --color-ui-surface: #F8FAFC;
+  --color-ui-white: #ffffff;
+  --color-ui-border: #E2E8F0;
+  --color-ui-outline: #CBD5E1;
+  --color-ui-muted: #94A3B8;
+  --color-ui-disabled: #94A3B8;
+  --color-ui-secondary: #64748B;
+  --color-ui-subtle: #475569;
+  --color-ui-body: #334155;
+  --color-ui-primary: #0F172A;
+  --color-ui-brand: #4F46E5;
+  --color-ui-brand-hover: #4338CA;
+  --color-ui-brand-dark: #312E81;
+  --color-ui-brand-surface: #EEF2FF;
+  --color-ui-brand-soft: #C7D2FE;
+  --color-ui-heading: #1E293B;
+  --color-ui-heading-strong: #0F172A;
+  --color-ui-secondary-surface: #F1F5F9;
+  --color-ui-success: #16A34A;
+  --color-ui-success-surface: #F0FDF4;
+  --color-ui-error: #DC2626;
+  --color-ui-error-surface: #FEF2F2;
+  --color-ui-warning: #F59E0B;
+  --color-ui-warning-dark: #92400E;
+  --color-ui-warning-surface: #FEF3C7;
+  --color-ui-info: #2563EB;
+  --color-ui-info-surface: #EFF6FF;
+  --color-ui-error-dark: #B91C1C;
+  --color-ui-success-dark: #15803D;
+  --color-ui-purple: #7C3AED;
+  --color-ui-purple-surface: #F5F3FF;
+  --font-sans: "Noto Sans", sans-serif;
+}
+
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  html,
+  body {
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    background: #F8FAFC;
+    color: #0F172A;
+    font-family: "Noto Sans", sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1, h2, h3, h4, p, ul, ol, pre {
+    margin: 0;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+    color: inherit;
+  }
+
+  button {
+    background: none;
+    border: 0;
+    padding: 0;
+  }
+
+  table {
+    border-collapse: collapse;
+  }
+
+  a {
+    color: #1E293B;
+  }
+}
+
+.md {
+  color: #334155;
+  overflow-wrap: anywhere;
+}
+.md > * + * { margin-top: 0.5rem; }
+.md h1, .md h2, .md h3, .md h4 { font-size: 0.95rem; font-weight: 600; color: #0F172A; }
+.md ul, .md ol { padding-left: 1.25rem; }
+.md ul { list-style: disc; }
+.md ol { list-style: decimal; }
+.md li > ul { list-style: circle; }
+.md li + li { margin-top: 0.15rem; }
+.md code { background: #F8FAFC; border-radius: 4px; padding: 0 4px; font-size: 0.85em; }
+.md pre { background: #F8FAFC; padding: 0.75rem; border-radius: 6px; overflow: auto; }
+.md table { border-collapse: collapse; width: 100%; font-size: 0.85rem; }
+.md th, .md td { border: 1px solid #E2E8F0; padding: 4px 8px; text-align: left; vertical-align: top; }
+.md blockquote { border-left: 3px solid #C7D2FE; padding-left: 0.75rem; color: #475569; }

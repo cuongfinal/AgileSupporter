@@ -1,0 +1,22 @@
+{
+  "glance_title": "Sprint 22–23 at a glance",
+  "stories": [
+    {
+      "key": "INTERNAL-7096",
+      "title": "Break down the package units on the B/L cargo total",
+      "tag": "IMPROVEMENT",
+      "status": "✓ BUILT",
+      "headline": ["One number, ", "now you can see what it holds"],
+      "purpose": "Let an Outbound Documentation Agent see which package units make up the cargo total, listed as a count per type, without opening every container to read them off.",
+      "why": "Today the cargo total is one figure summing every container. To see what package units sit inside, an agent has to open each container one by one. A per-type breakdown shows what a shipment holds at a glance.",
+      "improving": "The cargo total lists one row per package unit, each with its own quantity, built from the container totals it already sums.",
+      "demo": [
+        "A mixed-cargo B/L shows one row for each package type",
+        "A single-type B/L is shown in one row",
+        "The package quantities are added up, while keeping their original labels",
+        "Any cargo changes are reflected in the total"
+      ],
+      "demo_notes": "Test B/L: TESTBL000001"
+    }
+  ]
+}
