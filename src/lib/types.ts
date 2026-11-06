@@ -463,6 +463,22 @@ export interface TimeSlot {
   task: "main" | "kaizen";
 }
 
+export interface LoggedTimeEntry {
+  id: string;
+  start: string;
+  end: string;
+  minutes: number;
+  workItemId: string;
+  workItemName: string;
+  projectName: string;
+  isLocked: boolean;
+}
+
+export interface LoggedTimeDay {
+  minutes: number;
+  entries: LoggedTimeEntry[];
+}
+
 /** All values are per user and live only in ~/.dev-dashboard (the password is a secret). */
 export interface TimeTrackerSettings {
   baseUrl: string;
