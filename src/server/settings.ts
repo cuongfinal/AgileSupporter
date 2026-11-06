@@ -51,7 +51,7 @@ function defaults(): Settings {
       },
     },
     // Recording is opt-in: it drives a real browser on a test environment and uses a paid TTS API.
-    features: { figma: true, usage: true, recording: false, jiraWrite: false, logTime: false },
+    features: { usage: true, recording: false, jiraWrite: false, logTime: false },
     timeTracker: {
       baseUrl: "",
       userId: "",

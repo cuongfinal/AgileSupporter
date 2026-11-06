@@ -17,7 +17,7 @@ Source spec: `./SPEC.md`. Update this file in place as phases progress.
 | 4 — Code-aware ticket review (F4) | ✅ verified on the 3 local repos (Claude + Copilot, no file written); batch/checklist need real Jira |
 | 5 — Sprint Review demo via skill (F5) | ✅ draft → build → check → .pptx/.md download verified · [!] PDF preview: Keynote export failed on the dev machine, LibreOffice not installed |
 | 6 — Insights (F6) | 🔄 implemented — needs real Jira test |
-| 7 — Extras (F7) | 🔄 implemented — Figma needs a token; usage page verified |
+| 7 — Extras (F7) | ✅ usage page verified (Figma previews removed 2026-11-06) |
 
 ## Implementation notes — deviations from this plan
 
@@ -78,7 +78,7 @@ Source spec: `./SPEC.md`. Update this file in place as phases progress.
 - **Dark theme tokens** in `globals.css` (Tailwind v4 `@theme`): `bg #0b0d10`, `surface #12151a`,
   `surface-2 #181c22`, `border #262b33`, `text #e6e9ee`, `text-muted #9aa4b2`, `accent #6ea8fe`,
   `ok #4cc38a`, `warn #e5b454`, `danger #f07178`. Contrast checked in P0; components use tokens only.
-- **Secrets** (Jira token, optional Figma PAT): AES-256-GCM in SQLite, master key in the
+- **Secrets** (Jira token, TTS keys, log-time password): AES-256-GCM in SQLite, master key in the
   macOS Keychain (`@napi-rs/keyring`), fallback env `DEV_DASHBOARD_MASTER_KEY`. API returns only `{ set, last4 }`.
 
 ### Target layout
@@ -204,6 +204,6 @@ Data home `~/.dev-dashboard/`: `db.sqlite`, `venv/`, `templates/`, `builds/`.
 - **Done when:** sprint health and the sprint report load for the selected sprint.
 
 ### Phase 7 — Extras (F7)
-- [x] Figma link detection + thumbnails (`/v1/images/{fileKey}`, optional PAT)
+- [x] ~~Figma link detection + thumbnails~~ — removed 2026-11-06
 - [x] AI usage page (runs, duration, cache hit rate)
 - **Done when:** each item works behind its own toggle in Settings.

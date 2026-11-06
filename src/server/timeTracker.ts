@@ -57,7 +57,7 @@ export function entriesFor(dates: string[], t: TimeTrackerSettings): TimeEntry[]
 
 type TtError = { code?: string; resource?: string; field?: string; id?: string; message?: string };
 
-/** TimeTracker answers errors as [{code, resource, field, id, message}] with Japanese messages; name the task and setting involved. */
+/** The time tracker answers errors as [{code, resource, field, id, message}] with Japanese messages; name the task and setting involved. */
 function explain(text: string, t: TimeTrackerSettings): string {
   let list: TtError[];
   try {
@@ -86,10 +86,10 @@ async function call(t: TimeTrackerSettings, path: string, body: unknown, token?:
       signal: AbortSignal.timeout(30_000),
     });
   } catch (e) {
-    throw new HttpError(502, `TimeTracker unreachable (${e instanceof Error ? e.message : String(e)}) — VPN / office network?`);
+    throw new HttpError(502, `Time tracker unreachable (${e instanceof Error ? e.message : String(e)}) — VPN / office network?`);
   }
   const text = await res.text();
-  if (!res.ok) throw new HttpError(res.status === 401 || res.status === 403 ? 401 : 502, `TimeTracker HTTP ${res.status}: ${explain(text, t)}`);
+  if (!res.ok) throw new HttpError(res.status === 401 || res.status === 403 ? 401 : 502, `Time tracker HTTP ${res.status}: ${explain(text, t)}`);
   try {
     return text ? JSON.parse(text) : null;
   } catch {
@@ -99,7 +99,7 @@ async function call(t: TimeTrackerSettings, path: string, body: unknown, token?:
 
 type Obj = Record<string, unknown>;
 
-/** First numeric id among the fields TimeTracker uses for the signed-in user (the web app keeps it as `loginId`). */
+/** First numeric id among the fields the time tracker uses for the signed-in user (the web app keeps it as `loginId`). */
 function userIdFrom(j: Obj | null): string | null {
   const scopes = [j, j?.user, j?.data, (j?.data as Obj | undefined)?.user, j?.loginUser].filter((x): x is Obj => !!x && typeof x === "object");
   for (const o of scopes)
@@ -113,11 +113,11 @@ function userIdFrom(j: Obj | null): string | null {
 /** Logs in with the saved name + password; the token is used for one request and never stored. */
 async function login(t: TimeTrackerSettings): Promise<{ token: string; userId: string | null }> {
   const password = await getSecret("timetracker.password");
-  if (!password) throw new HttpError(400, "TimeTracker password is not saved (Settings → Features → Log time).");
+  if (!password) throw new HttpError(400, "Time tracker password is not saved (Settings → Features → Log time).");
   const raw = await call(t, "/api/auth/token", { loginName: t.loginName, password });
   const j = raw && typeof raw === "object" ? (raw as Obj) : null;
   const token = typeof raw === "string" ? raw : String(j?.token ?? j?.accessToken ?? j?.access_token ?? (j?.data as Obj | undefined)?.token ?? "");
-  if (!token) throw new HttpError(502, "TimeTracker login returned no token.");
+  if (!token) throw new HttpError(502, "Time tracker login returned no token.");
   return { token, userId: userIdFrom(j) };
 }
 
@@ -125,7 +125,7 @@ async function login(t: TimeTrackerSettings): Promise<{ token: string; userId: s
 function rememberUserId(t: TimeTrackerSettings, userId: string | null): string {
   if (userId && userId !== t.userId) updateSettings({ timeTracker: { ...t, userId } });
   const id = userId ?? t.userId;
-  if (!id) throw new HttpError(502, "Logged in, but TimeTracker did not return a user ID — enter it in Settings → Features → Log time.");
+  if (!id) throw new HttpError(502, "Logged in, but the time tracker did not return a user ID — enter it in Settings → Features → Log time.");
   return id;
 }
 
@@ -151,7 +151,7 @@ export async function logTime(dates: string[]) {
   const { token, userId } = await login(t);
   const id = rememberUserId(t, userId);
   const entries = entriesFor(days, { ...t, userId: id });
-  // Same payload as the team's browser script: one "adds" list; slots that already exist are skipped by TimeTracker.
+  // Same payload as the team's browser script: one "adds" list; slots that already exist are skipped by the time tracker.
   const response = await call(t, `/api/system/users/${encodeURIComponent(id)}/timeEntries/bulk`, { adds: entries }, token);
   return { days: days.length, entries: entries.length, hours: days.length * slotHours(t.slots), response };
 }

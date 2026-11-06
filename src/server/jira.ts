@@ -168,7 +168,6 @@ function issueFields(s: Settings): string {
     .join(",");
 }
 
-const FIGMA_RE = /https:\/\/(?:www\.)?figma\.com\/(?:file|design|proto|board)\/[A-Za-z0-9]+[^\s)\]>"']*/g;
 
 export function mapIssue(raw: Json, s: Settings): Ticket {
   const f = (raw.fields ?? {}) as Json;
@@ -223,7 +222,6 @@ export function mapIssue(raw: Json, s: Settings): Ticket {
     flagged: Array.isArray(flaggedRaw) ? flaggedRaw.length > 0 : !!flaggedRaw,
     updated: String(f.updated ?? ""),
     created: String(f.created ?? ""),
-    figmaLinks: Array.from(new Set(`${descriptionMd}\n${acMd}`.match(FIGMA_RE) ?? [])),
   };
 }
 
