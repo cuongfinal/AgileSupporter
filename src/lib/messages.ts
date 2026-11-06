@@ -733,6 +733,9 @@ export const en = {
   "logtime.dayOff": "Off",
   "logtime.userIdHint": "Filled in automatically by Test login (and on every Log).",
   "logtime.userIdFound": "User ID {id} saved.",
+  "sprint.quickSwitch": "Current or next sprint",
+  "sprint.currentShort": "Current · {name}",
+  "sprint.nextShort": "Next · {name}",
 } as const;
 
 export const vi: Record<keyof typeof en, string> = {
@@ -1471,4 +1474,7 @@ export const vi: Record<keyof typeof en, string> = {
   "logtime.dayOff": "Nghỉ",
   "logtime.userIdHint": "Tự điền khi bấm Thử đăng nhập (và mỗi lần Log).",
   "logtime.userIdFound": "Đã lưu user ID {id}.",
+  "sprint.quickSwitch": "Sprint hiện tại hoặc sắp tới",
+  "sprint.currentShort": "Hiện tại · {name}",
+  "sprint.nextShort": "Sắp tới · {name}",
 };

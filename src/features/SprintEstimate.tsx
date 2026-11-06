@@ -5,6 +5,7 @@ import { Card, Empty, StatusTag } from "@/components/ui";
 import { type MessageKey, useT } from "@/lib/i18n";
 import { startTracked, useTrackedFor } from "@/lib/jobTracker";
 import { useSprints, useSprintTickets } from "@/lib/queries";
+import { nextSprint } from "@/lib/sprints";
 import type { SprintTicket } from "@/lib/types";
 
 const MAX_PER_JOB = 20; // matches the /api/estimate/run limit
@@ -77,7 +78,7 @@ export default function SprintEstimate({
   const { t } = useT();
   const sprints = useSprints();
   const options = (sprints.data ?? []).filter((s) => s.state !== "closed");
-  const next = options.find((s) => s.state === "future") ?? options[0];
+  const next = nextSprint(options) ?? options[0];
   const [picked, setPicked] = useState<number | null>(null);
   const sprintId = picked ?? next?.id ?? null;
   const tickets = useSprintTickets(sprintId);

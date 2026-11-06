@@ -139,12 +139,12 @@ export async function listSprints(): Promise<Sprint[]> {
     if (j.isLast || !j.values.length) break;
   }
   const newestFirst = (a: Sprint, b: Sprint) => (b.startDate ?? "").localeCompare(a.startDate ?? "");
-  const soonestFirst = (a: Sprint, b: Sprint) => (a.startDate ?? "9999").localeCompare(b.startDate ?? "9999");
+  const soonestFirst = (a: Sprint, b: Sprint) => (a.startDate ?? "9999").localeCompare(b.startDate ?? "9999") || a.id - b.id;
   const active = all.filter((x) => x.state === "active");
   const closed = all.filter((x) => x.state === "closed").sort(newestFirst).slice(0, 12);
   const future = all.filter((x) => x.state === "future").sort(soonestFirst).slice(0, 3);
-  // Previous sprints right under the current one — that's what people look back at; only the next few future ones.
-  return [...active, ...closed, ...future];
+  // Upcoming sprints on top (soonest first), then the running one, then previous sprints newest first.
+  return [...future, ...active, ...closed];
 }
 
 function issueFields(s: Settings): string {

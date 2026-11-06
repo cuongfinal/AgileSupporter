@@ -1,9 +1,11 @@
 
 import Link from "next/link";
 import { useEffect } from "react";
+import { Segmented, SegmentedItem } from "@/components/kit";
 import { Select } from "@/components/Select";
 import { type MessageKey, useT } from "@/lib/i18n";
 import { useSprintPick, useSprints } from "@/lib/queries";
+import { currentSprint, nextSprint } from "@/lib/sprints";
 
 export default function SprintPicker() {
   const { t } = useT();
@@ -13,7 +15,7 @@ export default function SprintPicker() {
   useEffect(() => {
     const list = sprints.data;
     if (!list?.length) return;
-    if (sprintId === null || !list.some((s) => s.id === sprintId)) setSprintId((list.find((s) => s.state === "active") ?? list[0]).id);
+    if (sprintId === null || !list.some((s) => s.id === sprintId)) setSprintId((currentSprint(list) ?? list[0]).id);
   }, [sprints.data, sprintId, setSprintId]);
 
   if (sprints.error)
@@ -33,5 +35,28 @@ export default function SprintPicker() {
         onValueChange={(v) => v[0] && setSprintId(Number(v[0]))}
       />
     </div>
+  );
+}
+
+/** One click between the current sprint and the next one (to look ahead before it starts). */
+export function SprintQuickSwitch() {
+  const { t } = useT();
+  const sprints = useSprints();
+  const { sprintId, setSprintId } = useSprintPick();
+  const list = sprints.data ?? [];
+  const cur = currentSprint(list);
+  const next = nextSprint(list);
+  if (!cur || !next) return null;
+  const options = [cur, next];
+  return (
+    <Segmented
+      size="sm"
+      aria-label={t("sprint.quickSwitch")}
+      selectedIndex={options.findIndex((s) => s.id === sprintId)}
+      onChange={(i) => setSprintId(options[i].id)}
+    >
+      <SegmentedItem>{t("sprint.currentShort", { name: cur.name })}</SegmentedItem>
+      <SegmentedItem>{t("sprint.nextShort", { name: next.name })}</SegmentedItem>
+    </Segmented>
   );
 }
