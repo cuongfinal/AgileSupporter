@@ -193,6 +193,14 @@ three main repos), and builds the Sprint Review demo slides + demo script with t
   holidays) to exclude them. Two-step confirm → `POST {base}/api/auth/token` → `POST {base}/api/system/users/{id}/
   timeEntries/bulk` with `{ adds: [...] }` (Bearer token, used once, never stored). Max 62 working days per run.
   Slots that already exist are skipped by the time tracker itself.
+- Each day shows planned slots separately from existing tracker entries. Read entries with the saved login via
+  `GET {base}/api/system/users/{id}/timeEntries?startDate=YYYY%2FMM%2FDD&finishDate=YYYY%2FMM%2FDD`.
+  The tracker's `time` field is minutes: sum it per `workDate` without converting calendar dates across timezones.
+  Daily logged totals and expandable slot details display hours to two decimal places and include task, project and lock status. Deleted
+  entries are excluded. Loading and read failures are distinct from an empty day. Refresh on demand and after a
+  successful submission; tokens are never sent to the browser or stored, and the local read response is not cached.
+- The page header checks readiness using saved authentication and `GET {base}/api/system/users/me`. Only HTTP 200
+  shows a green READY tag; missing credentials or failed checks show NOT CONNECTED, with a manual retry action.
 
 ### F7 — Extras
 - AI usage log: runs, duration, cache hits per day.
