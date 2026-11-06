@@ -26,6 +26,7 @@ import {
   Search,
   Settings,
   SquareCheck,
+  Timer,
   Trash2,
   X,
 } from "lucide-react";
@@ -64,3 +65,4 @@ export const EyeIcon = make(Eye);
 export const ChevronDownIcon = make(ChevronDown);
 export const ChevronRightIcon = make(ChevronRight);
 export const CloseIcon = make(X);
+export const TimerIcon = make(Timer);

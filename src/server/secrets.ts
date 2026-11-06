@@ -4,8 +4,8 @@ import { run } from "./exec";
 import { dataPath, ensureDir } from "./paths";
 import { readJson, writeJson } from "./store";
 
-export type SecretName = "jira.token" | "figma.token" | "openai.key" | "elevenlabs.key";
-export const SECRET_NAMES: SecretName[] = ["jira.token", "figma.token", "openai.key", "elevenlabs.key"];
+export type SecretName = "jira.token" | "figma.token" | "openai.key" | "elevenlabs.key" | "timetracker.password";
+export const SECRET_NAMES: SecretName[] = ["jira.token", "figma.token", "openai.key", "elevenlabs.key", "timetracker.password"];
 
 const KEYCHAIN_SERVICE = "dev-dashboard";
 const KEYCHAIN_ACCOUNT = "master-key";

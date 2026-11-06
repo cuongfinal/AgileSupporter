@@ -32,7 +32,19 @@ const patch = z
     workspaceRoot: z.string(),
     demo: z.object({ testLinkTemplate: z.string(), activeTemplateId: z.string() }).partial(),
     glossary: z.array(z.object({ term: z.string().min(1), en: z.string(), vi: z.string(), keep: z.boolean() })),
-    features: z.object({ figma: z.boolean(), usage: z.boolean(), recording: z.boolean(), jiraWrite: z.boolean() }).partial(),
+    features: z.object({ figma: z.boolean(), usage: z.boolean(), recording: z.boolean(), jiraWrite: z.boolean(), logTime: z.boolean() }).partial(),
+    timeTracker: z
+      .object({
+        baseUrl: z.union([z.literal(""), z.string().url()]),
+        userId: z.string().regex(/^\d*$/, "User ID must be a number"),
+        loginName: z.string().max(200),
+        mainTaskId: z.string().regex(/^\d*$/, "Task ID must be a number"),
+        kaizenTaskId: z.string().regex(/^\d*$/, "Task ID must be a number"),
+        slots: z
+          .array(z.object({ start: z.string().regex(/^\d{2}:\d{2}$/), end: z.string().regex(/^\d{2}:\d{2}$/), task: z.enum(["main", "kaizen"]) }))
+          .max(12),
+      })
+      .partial(),
     recording: z
       .object({
         appUrl: z.string().url().or(z.literal("")),

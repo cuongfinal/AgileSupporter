@@ -8,7 +8,8 @@ import { Select } from "@/components/Select";
 import { useT } from "@/lib/i18n";
 import { type CliStatus, useAiStatus, useRepoStatus, useSettings } from "@/lib/queries";
 import { toast } from "@/lib/toast";
-import type { GlossaryEntry, JobState, PublicSettings, RepoConfig, Settings, TemplateMeta } from "@/lib/types";
+import type { GlossaryEntry, JobState, PublicSettings, RepoConfig, Settings, TemplateMeta, TimeSlot } from "@/lib/types";
+import type { SecretName } from "@/server/secrets";
 
 function useSave() {
   const qc = useQueryClient();
@@ -30,7 +31,7 @@ function SecretInput({
   value: controlled,
   onValueChange,
 }: {
-  name: "jira.token" | "figma.token" | "openai.key" | "elevenlabs.key";
+  name: SecretName;
   label: string;
   s: PublicSettings;
   value?: string;
@@ -209,11 +210,11 @@ function JiraSection({ s }: { s: PublicSettings }) {
       <div className="grid md:grid-cols-3 gap-4 mt-2">
         {(
           [
-            ["spField", "settings.spField", "sp", "customfield_10016"],
-            ["acField", "settings.acField", "ac", "customfield_10500"],
-            ["flaggedField", "settings.flaggedField", "flagged", "customfield_10021"],
+            ["spField", "settings.spField", "sp"],
+            ["acField", "settings.acField", "ac"],
+            ["flaggedField", "settings.flaggedField", "flagged"],
           ] as const
-        ).map(([k, label, c, ph]) => (
+        ).map(([k, label, c]) => (
           <Field
             key={k}
             label={t(label)}
@@ -226,7 +227,7 @@ function JiraSection({ s }: { s: PublicSettings }) {
                 : undefined
             }
           >
-            <Input size="sm" fullWidth placeholder={ph} value={jira[k]} onChange={(e) => set(k, e.target.value.trim())} />
+            <Input size="sm" fullWidth value={jira[k]} onChange={(e) => set(k, e.target.value.trim())} />
           </Field>
         ))}
       </div>
@@ -312,7 +313,7 @@ function AiSection({ s }: { s: PublicSettings }) {
           <Input size="sm" fullWidth value={ai.copilotBin} onChange={(e) => setAi({ ...ai, copilotBin: e.target.value })} />
         </Field>
         <Field label={t("settings.claudeModel")} hint={t("settings.modelHint")}>
-          <Input size="sm" fullWidth placeholder="sonnet" value={ai.claudeModel} onChange={(e) => setAi({ ...ai, claudeModel: e.target.value })} />
+          <Input size="sm" fullWidth value={ai.claudeModel} onChange={(e) => setAi({ ...ai, claudeModel: e.target.value })} />
         </Field>
         <Field label={t("settings.copilotModel")} hint={t("settings.modelHint")}>
           <Input size="sm" fullWidth value={ai.copilotModel} onChange={(e) => setAi({ ...ai, copilotModel: e.target.value })} />
@@ -406,7 +407,7 @@ function RepoRow({ repo, onChange }: { repo: RepoConfig; onChange: (r: RepoConfi
         {repo.path && st && !st.ok && <Tag size="sm" color="red" variant="light">{st.error ?? t("repos.invalidPath")}</Tag>}
       </div>
       <div className="flex gap-2 mt-3">
-        <Input size="sm" fullWidth placeholder="/Users/you/src/frontend-repo" value={draftPath} onChange={(e) => setDraftPath(e.target.value)} />
+        <Input size="sm" fullWidth value={draftPath} onChange={(e) => setDraftPath(e.target.value)} />
         <Button size="sm" variant="outline" className="!whitespace-nowrap shrink-0" disabled={!draftPath.trim() || draftPath === repo.path} loading={validate.isPending} onClick={() => validate.mutate()}>
           {t("repos.usePath")}
         </Button>
@@ -733,13 +734,13 @@ function JiraWriteForm({ s }: { s: PublicSettings }) {
       <p className="text-xs text-ui-secondary">{t("settings.aiFieldsHint")}</p>
       <div className="grid sm:grid-cols-3 gap-3">
         <Field label={t("settings.aiActionField")}>
-          <Input size="sm" fullWidth value={f.aiActionField} placeholder="AI Action Category" onChange={(e) => setF({ ...f, aiActionField: e.target.value })} />
+          <Input size="sm" fullWidth value={f.aiActionField} onChange={(e) => setF({ ...f, aiActionField: e.target.value })} />
         </Field>
         <Field label={t("settings.aiActionValue")}>
-          <Input size="sm" fullWidth value={f.aiActionValue} placeholder="Code Generation/Scaffolding" onChange={(e) => setF({ ...f, aiActionValue: e.target.value })} />
+          <Input size="sm" fullWidth value={f.aiActionValue} onChange={(e) => setF({ ...f, aiActionValue: e.target.value })} />
         </Field>
         <Field label={t("settings.aiScoreField")}>
-          <Input size="sm" fullWidth value={f.aiScoreField} placeholder="AI Contribution Score" onChange={(e) => setF({ ...f, aiScoreField: e.target.value })} />
+          <Input size="sm" fullWidth value={f.aiScoreField} onChange={(e) => setF({ ...f, aiScoreField: e.target.value })} />
         </Field>
       </div>
       <Button size="sm" disabled={!dirty} loading={save.isPending} onClick={() => save.mutate({ jira: { ...s.jira, ...f } })}>
@@ -792,7 +793,7 @@ function RecordingSettingsForm({ s }: { s: PublicSettings }) {
   return (
     <div className="mt-3 max-w-2xl space-y-3">
       <Field label={t("rec.appUrl")} hint={t("rec.appUrlHint")}>
-        <Input size="sm" fullWidth value={r.appUrl} placeholder="https://test.example.com/app" onChange={(e) => setR({ ...r, appUrl: e.target.value })} />
+        <Input size="sm" fullWidth value={r.appUrl} onChange={(e) => setR({ ...r, appUrl: e.target.value })} />
       </Field>
       <div className="grid sm:grid-cols-3 gap-3">
         <Field label={t("rec.browser")} hint={t("rec.browserHint")}>
@@ -874,6 +875,96 @@ function RecordingSettingsForm({ s }: { s: PublicSettings }) {
   );
 }
 
+/** TimeTracker NX: all per-user values live in ~/.dev-dashboard, the password as an encrypted secret. */
+function LogTimeForm({ s }: { s: PublicSettings }) {
+  const { t } = useT();
+  const save = useSave();
+  const [f, setF] = useState(s.timeTracker);
+  const dirty = JSON.stringify(f) !== JSON.stringify(s.timeTracker);
+  const qc = useQueryClient();
+  const test = useMutation({
+    mutationFn: async () => {
+      if (dirty) await save.mutateAsync({ timeTracker: f });
+      return http.post<{ userId: string }>("/api/logtime/test");
+    },
+    onSuccess: (r) => {
+      // The server stored the user ID from the login response; reload settings so the field shows it.
+      void qc.invalidateQueries({ queryKey: ["settings"] });
+      toast.success(t("logtime.loginOk"), t("logtime.userIdFound", { id: r.userId }));
+    },
+    onError: (e) => toast.fromError(t("logtime.loginFailed"), e),
+  });
+  const setSlot = (i: number, patch: Partial<TimeSlot>) => setF({ ...f, slots: f.slots.map((x, j) => (j === i ? { ...x, ...patch } : x)) });
+  return (
+    <div className="mt-3 max-w-2xl space-y-3">
+      <p className="text-xs text-ui-secondary">{t("logtime.settingsHint")}</p>
+      <Field label={t("logtime.baseUrl")}>
+        <Input size="sm" fullWidth value={f.baseUrl} onChange={(e) => setF({ ...f, baseUrl: e.target.value })} />
+      </Field>
+      <div className="grid sm:grid-cols-2 gap-3">
+        <Field label={t("logtime.loginName")}>
+          <Input size="sm" fullWidth autoComplete="off" value={f.loginName} onChange={(e) => setF({ ...f, loginName: e.target.value })} />
+        </Field>
+        <Field label={t("logtime.userId")} hint={t("logtime.userIdHint")}>
+          <Input size="sm" fullWidth inputMode="numeric" value={f.userId} onChange={(e) => setF({ ...f, userId: e.target.value.trim() })} />
+        </Field>
+        <Field label={t("logtime.mainTask")}>
+          <Input size="sm" fullWidth inputMode="numeric" value={f.mainTaskId} onChange={(e) => setF({ ...f, mainTaskId: e.target.value.trim() })} />
+        </Field>
+        <Field label={t("logtime.kaizenTask")}>
+          <Input size="sm" fullWidth inputMode="numeric" value={f.kaizenTaskId} onChange={(e) => setF({ ...f, kaizenTaskId: e.target.value.trim() })} />
+        </Field>
+      </div>
+      <SecretInput name="timetracker.password" label={t("logtime.password")} s={s} />
+      <div>
+        <div className="text-[13px] font-medium text-ui-body mb-1">{t("logtime.slots")}</div>
+        <div className="space-y-2">
+          {f.slots.map((slot, i) => (
+            <div key={i} className="flex flex-wrap items-center gap-2">
+              <Input size="sm" type="time" value={slot.start} onChange={(e) => setSlot(i, { start: e.target.value })} aria-label={t("logtime.start")} />
+              <span className="text-ui-secondary">→</span>
+              <Input size="sm" type="time" value={slot.end} onChange={(e) => setSlot(i, { end: e.target.value })} aria-label={t("logtime.end")} />
+              <div className="w-40">
+                <Select
+                  size="sm"
+                  aria-label={t("logtime.task")}
+                  items={[
+                    { value: "main", label: t("logtime.taskMain") },
+                    { value: "kaizen", label: t("logtime.taskKaizen") },
+                  ]}
+                  value={[slot.task]}
+                  onValueChange={(v) => v[0] && setSlot(i, { task: v[0] as TimeSlot["task"] })}
+                />
+              </div>
+              <Button size="sm" variant="ghost" color="danger" aria-label={t("common.remove")} onClick={() => setF({ ...f, slots: f.slots.filter((_, j) => j !== i) })}>
+                <TrashIcon />
+              </Button>
+            </div>
+          ))}
+          <Button size="sm" variant="ghost" leftIcon={<AddIcon />} onClick={() => setF({ ...f, slots: [...f.slots, { start: "17:00", end: "18:00", task: "main" }] })}>
+            {t("logtime.addSlot")}
+          </Button>
+        </div>
+      </div>
+      <div className="flex gap-2">
+        <Button size="sm" disabled={!dirty} loading={save.isPending} onClick={() => save.mutate({ timeTracker: f })}>
+          {t("common.save")}
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          leftIcon={<CheckCircleIcon />}
+          disabled={!f.baseUrl || !f.loginName || !s.secrets["timetracker.password"].set}
+          loading={test.isPending}
+          onClick={() => test.mutate()}
+        >
+          {t("logtime.testLogin")}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 function FeaturesSection({ s }: { s: PublicSettings }) {
   const { t } = useT();
   const save = useSave();
@@ -922,6 +1013,13 @@ function FeaturesSection({ s }: { s: PublicSettings }) {
         s.features.jiraWrite,
         (v) => save.mutate({ features: { ...s.features, jiraWrite: v } }),
         s.features.jiraWrite && <JiraWriteForm key={JSON.stringify(s.jira)} s={s} />,
+      )}
+      {row(
+        t("logtime.feature"),
+        t("logtime.featureHint"),
+        s.features.logTime,
+        (v) => save.mutate({ features: { ...s.features, logTime: v } }),
+        s.features.logTime && <LogTimeForm key={JSON.stringify(s.timeTracker)} s={s} />,
       )}
     </Card>
   );
