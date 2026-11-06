@@ -5,7 +5,7 @@ import { useRouter } from "next/router";
 import { useMemo, useState } from "react";
 import { Card, Empty, JobProgress, PageHeader, ReloadButton, ReviewCounts, StaleTag, StatusTag } from "@/components/ui";
 import RepoBadges from "@/features/RepoBadges";
-import SprintPicker from "@/features/SprintPicker";
+import SprintPicker, { SprintQuickSwitch } from "@/features/SprintPicker";
 import TicketDrawer from "@/features/TicketDrawer";
 import { download, http } from "@/lib/client";
 import { startTracked, useJobTracker, useLatestTracked } from "@/lib/jobTracker";
@@ -242,7 +242,10 @@ function SprintBody({ sprintId }: { sprintId: number | null }) {
                 />
               </div>
             ) : (
-              <SprintPicker />
+              <>
+                <SprintQuickSwitch />
+                <SprintPicker />
+              </>
             )}
             <ReloadButton keys={["sprints", "sprint", "search", "ticket", "me", "repo-status"]} />
           </>
