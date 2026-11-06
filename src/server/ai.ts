@@ -39,17 +39,42 @@ export interface AiRunResult<T> {
   costUsd?: number;
 }
 
-function parseLooseJson(text: string): unknown {
-  const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/);
-  const candidate = (fenced ? fenced[1] : text).trim();
-  try {
-    return JSON.parse(candidate);
-  } catch {
-    const start = candidate.indexOf("{");
-    const end = candidate.lastIndexOf("}");
-    if (start >= 0 && end > start) return JSON.parse(candidate.slice(start, end + 1));
-    throw new Error("AI output is not JSON");
+/**
+ * Every top-level JSON object in a CLI's text output, in order. Copilot can print the answer more than once,
+ * add prose or a stats line after it, or wrap it in fences, so slicing first "{" … last "}" is not enough.
+ */
+export function jsonCandidates(text: string): unknown[] {
+  const out: unknown[] = [];
+  const tryParse = (s: string) => {
+    try {
+      out.push(JSON.parse(s));
+    } catch {
+      /* not JSON on its own */
+    }
+  };
+  for (const m of text.matchAll(/```(?:json)?\s*([\s\S]*?)```/g)) tryParse(m[1].trim());
+  let depth = 0;
+  let start = -1;
+  let inStr = false;
+  let esc = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inStr) {
+      if (esc) esc = false;
+      else if (c === "\\") esc = true;
+      else if (c === '"') inStr = false;
+      continue;
+    }
+    if (c === '"' && depth > 0) inStr = true;
+    else if (c === "{") {
+      if (depth === 0) start = i;
+      depth++;
+    } else if (c === "}" && depth > 0) {
+      depth--;
+      if (depth === 0 && start >= 0) tryParse(text.slice(start, i + 1));
+    }
   }
+  return out;
 }
 
 async function runOnce(provider: AiProvider, prompt: string, jsonSchema: object, readDirs: string[], timeoutMs: number) {
@@ -77,7 +102,7 @@ async function runOnce(provider: AiProvider, prompt: string, jsonSchema: object,
       throw new Error(`claude failed (exit ${r.code}): ${(r.stderr || r.stdout).slice(0, 600)}`);
     }
     if (out.is_error) throw new Error(`claude: ${String(out.result ?? "error").slice(0, 600)}`);
-    return { raw: out.structured_output ?? parseLooseJson(out.result ?? ""), costUsd: out.total_cost_usd };
+    return { candidates: out.structured_output !== undefined ? [out.structured_output] : jsonCandidates(out.result ?? ""), costUsd: out.total_cost_usd };
   }
 
   const full =
@@ -91,7 +116,7 @@ async function runOnce(provider: AiProvider, prompt: string, jsonSchema: object,
   const r = await run(bin, args, { cwd, timeoutMs });
   if (r.timedOut) throw new Error(`copilot timed out after ${Math.round(timeoutMs / 1000)}s`);
   if (r.code !== 0) throw new Error(`copilot failed (exit ${r.code}): ${(r.stderr || r.stdout).slice(0, 600)}`);
-  return { raw: parseLooseJson(r.stdout), costUsd: undefined };
+  return { candidates: jsonCandidates(r.stdout), costUsd: undefined };
 }
 
 export async function runAi<T>(opts: AiRunOptions<T>): Promise<AiRunResult<T>> {
@@ -105,14 +130,19 @@ export async function runAi<T>(opts: AiRunOptions<T>): Promise<AiRunResult<T>> {
   let lastError = "";
   try {
     for (let attempt = 0; attempt < 2; attempt++) {
-      const { raw, costUsd } = await runOnce(provider, prompt, jsonSchema, opts.readDirs ?? [], timeoutMs);
-      const parsed = opts.schema.safeParse(raw);
-      if (parsed.success) {
+      const { candidates, costUsd } = await runOnce(provider, prompt, jsonSchema, opts.readDirs ?? [], timeoutMs);
+      // The final answer usually comes last; take the last object that fits the schema.
+      for (const c of [...candidates].reverse()) {
+        const parsed = opts.schema.safeParse(c);
+        if (!parsed.success) continue;
         const ms = Date.now() - started;
         logUsage({ ts: new Date().toISOString(), task: opts.task, provider, ms, ok: true, costUsd });
         return { data: parsed.data, provider, ms, costUsd };
       }
-      lastError = parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ");
+      const biggest = [...candidates].sort((a, b) => JSON.stringify(b).length - JSON.stringify(a).length)[0];
+      lastError = biggest
+        ? (opts.schema.safeParse(biggest).error?.issues ?? []).map((i) => `${i.path.join(".")}: ${i.message}`).join("; ")
+        : "the output contained no JSON object";
       prompt = `${opts.prompt}\n\nYour previous answer failed validation (${lastError}). Return corrected JSON only.`;
     }
     throw new Error(`AI output did not match the expected shape: ${lastError}`);
