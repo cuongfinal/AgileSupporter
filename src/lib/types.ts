@@ -44,7 +44,8 @@ export interface Settings {
   demo: { testLinkTemplate: string; activeTemplateId: string };
   recording: RecordingSettings;
   glossary: GlossaryEntry[];
-  features: { figma: boolean; usage: boolean; recording: boolean; jiraWrite: boolean };
+  features: { figma: boolean; usage: boolean; recording: boolean; jiraWrite: boolean; logTime: boolean };
+  timeTracker: TimeTrackerSettings;
 }
 
 export type TtsProvider = "openai" | "elevenlabs" | "macos";
@@ -68,7 +69,7 @@ export interface RecordingSettings {
 }
 
 export interface PublicSettings extends Settings {
-  secrets: Record<"jira.token" | "figma.token" | "openai.key" | "elevenlabs.key", { set: boolean; last4: string }>;
+  secrets: Record<"jira.token" | "figma.token" | "openai.key" | "elevenlabs.key" | "timetracker.password", { set: boolean; last4: string }>;
   dataHome: string;
 }
 
@@ -453,4 +454,22 @@ export interface RetroBoard {
   headline: Bilingual | null;
   notes: string;
   cards: RetroCard[];
+}
+
+// ---------------------------------------------------------------- log time (TimeTracker NX)
+
+export interface TimeSlot {
+  start: string; // "HH:MM"
+  end: string;
+  task: "main" | "kaizen";
+}
+
+/** All values are per user and live only in ~/.dev-dashboard (the password is a secret). */
+export interface TimeTrackerSettings {
+  baseUrl: string;
+  userId: string;
+  loginName: string;
+  mainTaskId: string;
+  kaizenTaskId: string;
+  slots: TimeSlot[];
 }

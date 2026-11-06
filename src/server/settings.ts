@@ -51,7 +51,19 @@ function defaults(): Settings {
       },
     },
     // Recording is opt-in: it drives a real browser on a test environment and uses a paid TTS API.
-    features: { figma: true, usage: true, recording: false, jiraWrite: false },
+    features: { figma: true, usage: true, recording: false, jiraWrite: false, logTime: false },
+    timeTracker: {
+      baseUrl: "",
+      userId: "",
+      loginName: "",
+      mainTaskId: "",
+      kaizenTaskId: "",
+      slots: [
+        { start: "08:00", end: "12:00", task: "main" },
+        { start: "13:00", end: "15:30", task: "main" },
+        { start: "15:30", end: "17:00", task: "kaizen" },
+      ],
+    },
   };
 }
 
@@ -66,6 +78,7 @@ export function getSettings(): Settings {
     demo: { ...d.demo, ...saved.demo },
     recording: { ...d.recording, ...saved.recording, tts: { ...d.recording.tts, ...saved.recording?.tts } },
     features: { ...d.features, ...saved.features },
+    timeTracker: { ...d.timeTracker, ...saved.timeTracker },
     repos: saved.repos?.length ? saved.repos : d.repos,
     glossary: saved.glossary ?? d.glossary,
     workspaceRoot: saved.workspaceRoot || d.workspaceRoot,
@@ -82,7 +95,9 @@ export function updateSettings(patch: Partial<Settings>): Settings {
     demo: { ...cur.demo, ...patch.demo },
     recording: { ...cur.recording, ...patch.recording, tts: { ...cur.recording.tts, ...patch.recording?.tts } },
     features: { ...cur.features, ...patch.features },
+    timeTracker: { ...cur.timeTracker, ...patch.timeTracker },
   };
+  next.timeTracker.baseUrl = next.timeTracker.baseUrl.trim().replace(/\/+$/, "");
   next.recording.appUrl = next.recording.appUrl.trim().replace(/\/+$/, "");
   next.jira.baseUrl = next.jira.baseUrl.replace(/\/+$/, "");
   next.ai.concurrency = Math.min(4, Math.max(1, Number(next.ai.concurrency) || 2));

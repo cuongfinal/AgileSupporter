@@ -1,18 +1,19 @@
 import { Segmented, SegmentedItem, Tooltip, TooltipContent, TooltipTrigger } from "@/components/kit";
-import { CalculatorIcon, ChartIcon, ClockIcon, IdeaIcon, ListIcon, ReportIcon, SettingsIcon, TaskIcon } from "@/components/icons";
+import { CalculatorIcon, ChartIcon, ClockIcon, IdeaIcon, ListIcon, ReportIcon, SettingsIcon, TaskIcon, TimerIcon } from "@/components/icons";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import { type ReactNode, useEffect } from "react";
 import { type MessageKey, restoreLang, useLang, useT } from "@/lib/i18n";
 import { restoreSprint, useAiStatus, useSettings } from "@/lib/queries";
 
-const NAV: { href: string; label: MessageKey; icon: ReactNode; feature?: "usage" }[] = [
+const NAV: { href: string; label: MessageKey; icon: ReactNode; feature?: "usage" | "logTime" }[] = [
   { href: "/sprint", label: "nav.sprint", icon: <ListIcon /> },
   { href: "/tasks", label: "nav.tasks", icon: <TaskIcon /> },
   { href: "/estimate", label: "nav.estimate", icon: <CalculatorIcon /> },
   { href: "/demo", label: "nav.demo", icon: <ReportIcon /> },
   { href: "/insights", label: "nav.insights", icon: <ChartIcon /> },
   { href: "/retro", label: "nav.retro", icon: <IdeaIcon /> },
+  { href: "/logtime", label: "nav.logtime", icon: <TimerIcon />, feature: "logTime" },
   { href: "/usage", label: "nav.usage", icon: <ClockIcon />, feature: "usage" },
   { href: "/settings", label: "nav.settings", icon: <SettingsIcon /> },
 ];
