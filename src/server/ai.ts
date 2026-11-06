@@ -2,7 +2,9 @@ import { z } from "zod";
 import type { AiProvider, UsageEntry } from "@/lib/types";
 import { HttpError } from "./api";
 import { findBinary, run } from "./exec";
-import { aiWorkDir } from "./paths";
+import fs from "node:fs";
+import path from "node:path";
+import { aiWorkDir, dataPath, ensureDir } from "./paths";
 import { getSettings } from "./settings";
 import { appendJsonLine, hashKey, readJson, readJsonLines, writeJson } from "./store";
 
@@ -102,7 +104,11 @@ async function runOnce(provider: AiProvider, prompt: string, jsonSchema: object,
       throw new Error(`claude failed (exit ${r.code}): ${(r.stderr || r.stdout).slice(0, 600)}`);
     }
     if (out.is_error) throw new Error(`claude: ${String(out.result ?? "error").slice(0, 600)}`);
-    return { candidates: out.structured_output !== undefined ? [out.structured_output] : jsonCandidates(out.result ?? ""), costUsd: out.total_cost_usd };
+    return {
+      candidates: out.structured_output !== undefined ? [out.structured_output] : jsonCandidates(out.result ?? ""),
+      text: out.result || JSON.stringify(out.structured_output ?? null),
+      costUsd: out.total_cost_usd,
+    };
   }
 
   const full =
@@ -116,7 +122,7 @@ async function runOnce(provider: AiProvider, prompt: string, jsonSchema: object,
   const r = await run(bin, args, { cwd, timeoutMs });
   if (r.timedOut) throw new Error(`copilot timed out after ${Math.round(timeoutMs / 1000)}s`);
   if (r.code !== 0) throw new Error(`copilot failed (exit ${r.code}): ${(r.stderr || r.stdout).slice(0, 600)}`);
-  return { candidates: jsonCandidates(r.stdout), costUsd: undefined };
+  return { candidates: jsonCandidates(r.stdout), text: r.stdout, costUsd: undefined };
 }
 
 export async function runAi<T>(opts: AiRunOptions<T>): Promise<AiRunResult<T>> {
@@ -128,28 +134,44 @@ export async function runAi<T>(opts: AiRunOptions<T>): Promise<AiRunResult<T>> {
   const started = Date.now();
   let prompt = opts.prompt;
   let lastError = "";
+  const raw: string[] = [];
   try {
     for (let attempt = 0; attempt < 2; attempt++) {
-      const { candidates, costUsd } = await runOnce(provider, prompt, jsonSchema, opts.readDirs ?? [], timeoutMs);
+      const { candidates, text, costUsd } = await runOnce(provider, prompt, jsonSchema, opts.readDirs ?? [], timeoutMs);
+      raw.push(text);
+      // Some models split one long answer into several objects; also try them merged in order.
+      const objects = candidates.filter((c): c is Record<string, unknown> => !!c && typeof c === "object" && !Array.isArray(c));
+      const tries = [...[...candidates].reverse(), ...(objects.length > 1 ? [Object.assign({}, ...objects)] : [])];
       // The final answer usually comes last; take the last object that fits the schema.
-      for (const c of [...candidates].reverse()) {
+      for (const c of tries) {
         const parsed = opts.schema.safeParse(c);
         if (!parsed.success) continue;
         const ms = Date.now() - started;
         logUsage({ ts: new Date().toISOString(), task: opts.task, provider, ms, ok: true, costUsd });
         return { data: parsed.data, provider, ms, costUsd };
       }
-      const biggest = [...candidates].sort((a, b) => JSON.stringify(b).length - JSON.stringify(a).length)[0];
+      const biggest = [...tries].sort((a, b) => JSON.stringify(b).length - JSON.stringify(a).length)[0];
       lastError = biggest
         ? (opts.schema.safeParse(biggest).error?.issues ?? []).map((i) => `${i.path.join(".")}: ${i.message}`).join("; ")
         : "the output contained no JSON object";
-      prompt = `${opts.prompt}\n\nYour previous answer failed validation (${lastError}). Return corrected JSON only.`;
+      prompt = `${opts.prompt}\n\nYour previous answer failed validation (${lastError}). Return ONE complete JSON object with ALL required fields, nothing else.`;
     }
-    throw new Error(`AI output did not match the expected shape: ${lastError}`);
+    throw new Error(`AI output did not match the expected shape: ${lastError} (raw output: ${saveFailure(opts.task, provider, raw)})`);
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     logUsage({ ts: new Date().toISOString(), task: opts.task, provider, ms: Date.now() - started, ok: false, error: msg.slice(0, 300) });
     throw e;
+  }
+}
+
+/** Keeps the raw CLI output of a run whose JSON didn't validate, so the cause can be seen later. */
+function saveFailure(task: string, provider: AiProvider, raw: string[]): string {
+  try {
+    const file = path.join(ensureDir(dataPath("logs", "ai-failures")), `${new Date().toISOString().replace(/[:.]/g, "-")}-${task}-${provider}.txt`);
+    fs.writeFileSync(file, raw.map((r, i) => `===== attempt ${i + 1} =====\n${r}`).join("\n\n").slice(0, 500_000), { mode: 0o600 });
+    return file;
+  } catch {
+    return "not saved";
   }
 }
 
