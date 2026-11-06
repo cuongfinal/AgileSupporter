@@ -106,7 +106,8 @@ async function runOnce(provider: AiProvider, prompt: string, jsonSchema: object,
   }
 
   const full =
-    `${prompt}\n\n## Output format\nReturn ONLY one JSON object (no prose, no code fences) that validates against this JSON Schema:\n` +
+    `${prompt}\n\n## Output format\nReturn ONLY one JSON object (no prose, no code fences) that validates against this JSON Schema. ` +
+    "Include every required field, including fields after brief. Use [] for array fields with no applicable items; never omit required fields.\n" +
     JSON.stringify(jsonSchema);
   // -p needs --allow-all-tools; deny rules always win over it, so shell/write/url stay blocked.
   const args = ["-p", full, "--allow-all-tools", "--deny-tool", "shell", "--deny-tool", "write", "--deny-tool", "url"];
@@ -143,7 +144,11 @@ export async function runAi<T>(opts: AiRunOptions<T>): Promise<AiRunResult<T>> {
       lastError = biggest
         ? (opts.schema.safeParse(biggest).error?.issues ?? []).map((i) => `${i.path.join(".")}: ${i.message}`).join("; ")
         : "the output contained no JSON object";
-      prompt = `${opts.prompt}\n\nYour previous answer failed validation (${lastError}). Return corrected JSON only.`;
+      prompt = `${opts.prompt}\n\nYour previous answer failed validation (${lastError}).\n` +
+        (biggest ? `Rejected JSON:\n${JSON.stringify(biggest)}\n` : "") +
+        "Return the entire corrected JSON object, not a patch or only the missing fields. " +
+        "Include every required field from the JSON Schema. Preserve supported facts and complete the missing analysis; " +
+        "use [] for array fields with no applicable items. Return corrected JSON only.";
     }
     throw new Error(`AI output did not match the expected shape: ${lastError}`);
   } catch (e) {
