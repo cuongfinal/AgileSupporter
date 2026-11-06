@@ -600,34 +600,8 @@ function ChangesTab({ data }: { data: TicketPayload }) {
   );
 }
 
-function FigmaTab({ ticketKey }: { ticketKey: string }) {
-  const { t } = useT();
-  const q = useQuery({
-    queryKey: ["figma", ticketKey],
-    queryFn: () => http.get<{ url: string; image: string | null; error?: string }[]>(`/api/figma/${ticketKey}`),
-  });
-  if (q.isLoading) return <Spinner size="sm" />;
-  if (q.error) return <p className="text-sm text-ui-error">{String((q.error as Error).message)}</p>;
-  return (
-    <div className="grid gap-3">
-      {q.data?.map((f) => (
-        <a key={f.url} href={f.url} target="_blank" rel="noreferrer" className="block border border-ui-border rounded-md overflow-hidden no-underline">
-          {f.image ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={f.image} alt={t("figma.preview")} className="w-full max-h-96 object-contain bg-ui-surface" />
-          ) : (
-            <div className="p-4 text-sm text-ui-error">{f.error ?? t("figma.noImage")}</div>
-          )}
-          <div className="px-3 py-2 text-xs text-ui-heading truncate">{f.url}</div>
-        </a>
-      ))}
-    </div>
-  );
-}
-
 export default function TicketDrawer({ ticketKey, onClose }: { ticketKey: string | null; onClose: () => void }) {
   const { t } = useT();
-  const settings = useSettings();
   const [tab, setTab] = useState(0);
   const q = useQuery({
     queryKey: ["ticket", ticketKey],
@@ -640,7 +614,6 @@ export default function TicketDrawer({ ticketKey, onClose }: { ticketKey: string
     if (q.data) void qc.invalidateQueries({ queryKey: ["sprint"], refetchType: "none" });
   }, [q.data, qc]);
 
-  const figma = settings.data?.features.figma !== false && (q.data?.ticket.figmaLinks.length ?? 0) > 0;
   const tabs: { id: string; label: string }[] = [
     { id: "details", label: t("ticket.tabDetails") },
     { id: "summary", label: t("ticket.tabSummary") },
@@ -648,7 +621,6 @@ export default function TicketDrawer({ ticketKey, onClose }: { ticketKey: string
     { id: "spec", label: q.data?.stale.spec ? `${t("ticket.tabSpec")} ⚠` : t("ticket.tabSpec") },
     { id: "tests", label: q.data?.stale.tests ? `${t("ticket.tabTests")} ⚠` : t("ticket.tabTests") },
     { id: "changes", label: q.data?.snapshot.previous ? `${t("ticket.tabChanges")} •` : t("ticket.tabChanges") },
-    ...(figma ? [{ id: "figma", label: "Figma" }] : []),
   ];
   const current = tabs[Math.min(tab, tabs.length - 1)]?.id;
 
@@ -700,7 +672,6 @@ export default function TicketDrawer({ ticketKey, onClose }: { ticketKey: string
               {current === "spec" && <SpecTab data={q.data} />}
               {current === "tests" && <TestsTab data={q.data} />}
               {current === "changes" && <ChangesTab data={q.data} />}
-              {current === "figma" && <FigmaTab ticketKey={q.data.ticket.key} />}
             </div>
           </>
         )}

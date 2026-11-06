@@ -32,7 +32,7 @@ const patch = z
     workspaceRoot: z.string(),
     demo: z.object({ testLinkTemplate: z.string(), activeTemplateId: z.string() }).partial(),
     glossary: z.array(z.object({ term: z.string().min(1), en: z.string(), vi: z.string(), keep: z.boolean() })),
-    features: z.object({ figma: z.boolean(), usage: z.boolean(), recording: z.boolean(), jiraWrite: z.boolean(), logTime: z.boolean() }).partial(),
+    features: z.object({ usage: z.boolean(), recording: z.boolean(), jiraWrite: z.boolean(), logTime: z.boolean() }).partial(),
     timeTracker: z
       .object({
         baseUrl: z.union([z.literal(""), z.string().url()]),

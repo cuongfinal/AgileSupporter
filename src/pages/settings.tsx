@@ -875,7 +875,7 @@ function RecordingSettingsForm({ s }: { s: PublicSettings }) {
   );
 }
 
-/** TimeTracker NX: all per-user values live in ~/.dev-dashboard, the password as an encrypted secret. */
+/** Time tracker: all per-user values live in ~/.dev-dashboard, the password as an encrypted secret. */
 function LogTimeForm({ s }: { s: PublicSettings }) {
   const { t } = useT();
   const save = useSave();
@@ -968,11 +968,6 @@ function LogTimeForm({ s }: { s: PublicSettings }) {
 function FeaturesSection({ s }: { s: PublicSettings }) {
   const { t } = useT();
   const save = useSave();
-  const test = useMutation({
-    mutationFn: () => http.post<{ account: string }>("/api/settings/test-figma"),
-    onSuccess: (r) => toast.success(t("settings.figmaOk"), r.account),
-    onError: (e) => toast.fromError(t("settings.figmaFailed"), e),
-  });
   const row = (label: string, hint: string, checked: boolean, onChange: (v: boolean) => void, extra?: ReactNode) => (
     <div className="flex items-start justify-between gap-4 py-3 border-b border-ui-border last:border-0">
       <div>
@@ -985,20 +980,6 @@ function FeaturesSection({ s }: { s: PublicSettings }) {
   );
   return (
     <Card id="features" title={t("settings.features")}>
-      {row(
-        t("settings.figma"),
-        t("settings.figmaHint"),
-        s.features.figma,
-        (v) => save.mutate({ features: { ...s.features, figma: v } }),
-        s.features.figma && (
-          <div className="mt-3 max-w-xl space-y-2">
-            <SecretInput name="figma.token" label={t("settings.figmaToken")} s={s} />
-            <Button size="sm" variant="outline" leftIcon={<CheckCircleIcon />} disabled={!s.secrets["figma.token"].set} loading={test.isPending} onClick={() => test.mutate()}>
-              {t("settings.testConnection")}
-            </Button>
-          </div>
-        ),
-      )}
       {row(t("settings.usage"), t("settings.usageHint"), s.features.usage, (v) => save.mutate({ features: { ...s.features, usage: v } }))}
       {row(
         t("rec.feature"),

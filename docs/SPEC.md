@@ -186,16 +186,15 @@ three main repos), and builds the Sprint Review demo slides + demo script with t
   the sprint changed since the cards were made. Nothing is written to Jira.
 
 ### F8 — Log time (page `/logtime`; Settings → Features → "Log time", off by default)
-- Settings (per user, only in `~/.dev-dashboard`, nothing in the repo): TimeTracker NX base URL, login name, password
+- Settings (per user, only in `~/.dev-dashboard`, nothing in the repo): time tracker base URL, login name, password
   (encrypted secret), user ID (filled from the login response — `loginId` — by "Test login" and every run), main + kaizen task IDs, and the daily slots (default 08:00–12:00 main, 13:00–15:30 main,
   15:30–17:00 kaizen). "Test login" checks the account.
 - Page: date range (this week / last week / this month / picked sprint), Monday–Friday listed; untick days off (leave,
   holidays) to exclude them. Two-step confirm → `POST {base}/api/auth/token` → `POST {base}/api/system/users/{id}/
   timeEntries/bulk` with `{ adds: [...] }` (Bearer token, used once, never stored). Max 62 working days per run.
-  Slots that already exist are skipped by TimeTracker itself.
+  Slots that already exist are skipped by the time tracker itself.
 
 ### F7 — Extras
-- Figma: detect Figma links in tickets, show frame thumbnails (Figma PAT, optional).
 - AI usage log: runs, duration, cache hits per day.
 
 ## Constraints
