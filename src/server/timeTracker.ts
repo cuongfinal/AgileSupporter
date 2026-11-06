@@ -1,4 +1,5 @@
 import type { TimeSlot, TimeTrackerSettings } from "@/lib/types";
+import { slotHours, timeSlotsSchema } from "@/lib/timeSlots";
 import { HttpError } from "./api";
 import { getSecret } from "./secrets";
 import { getSettings, updateSettings } from "./settings";
@@ -16,8 +17,7 @@ export interface TimeEntry {
 }
 
 const toYmd = (d: Date) => d.toISOString().slice(0, 10);
-const minutes = (hhmm: string) => Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(3, 5));
-export const slotHours = (slots: TimeSlot[]) => slots.reduce((a, s) => a + Math.max(0, minutes(s.end) - minutes(s.start)), 0) / 60;
+export { slotHours } from "@/lib/timeSlots";
 
 /** Monday–Friday between two dates (inclusive), as YYYY-MM-DD. Dates are calendar days, so UTC math avoids timezone shifts. */
 export function workdays(from: string, to: string): string[] {
@@ -42,9 +42,9 @@ function config(needTasks = true): TimeTrackerSettings {
   return t;
 }
 
-export function entriesFor(dates: string[], t: TimeTrackerSettings): TimeEntry[] {
+export function entriesFor(dates: string[], t: TimeTrackerSettings, overrides: Record<string, TimeSlot[]> = {}): TimeEntry[] {
   return dates.flatMap((date) =>
-    t.slots.map((s) => ({
+    (overrides[date] ?? t.slots).map((s) => ({
       workItemId: s.task === "main" ? t.mainTaskId : t.kaizenTaskId,
       startTime: `${date}T${s.start}:00`,
       finishTime: `${date}T${s.end}:00`,
@@ -141,17 +141,22 @@ export function preview(from: string, to: string) {
   return { days, slots: t.slots, hoursPerDay: slotHours(t.slots), entries: days.length * t.slots.length };
 }
 
-export async function logTime(dates: string[]) {
+export async function logTime(dates: string[], overrides: Record<string, TimeSlot[]> = {}) {
   const s = getSettings();
   if (!s.features.logTime) throw new HttpError(403, "Log time is turned off (Settings → Features).");
   const t = config();
   const days = [...new Set(dates)].sort();
   if (!days.length) throw new HttpError(400, "Pick at least one day.");
   if (days.length > MAX_DAYS || days.some((d) => !DATE_RE.test(d))) throw new HttpError(400, "Invalid days");
+  if (Object.keys(overrides).some((date) => !days.includes(date))) throw new HttpError(400, "Time overrides must belong to selected days");
+  for (const date of days) {
+    const parsed = timeSlotsSchema.safeParse(overrides[date] ?? t.slots);
+    if (!parsed.success) throw new HttpError(400, `${date}: ${parsed.error.issues.map((issue) => issue.message).join("; ")}`);
+  }
   const { token, userId } = await login(t);
   const id = rememberUserId(t, userId);
-  const entries = entriesFor(days, { ...t, userId: id });
+  const entries = entriesFor(days, { ...t, userId: id }, overrides);
   // Same payload as the team's browser script: one "adds" list; slots that already exist are skipped by the time tracker.
   const response = await call(t, `/api/system/users/${encodeURIComponent(id)}/timeEntries/bulk`, { adds: entries }, token);
-  return { days: days.length, entries: entries.length, hours: days.length * slotHours(t.slots), response };
+  return { days: days.length, entries: entries.length, hours: days.reduce((total, date) => total + slotHours(overrides[date] ?? t.slots), 0), response };
 }
