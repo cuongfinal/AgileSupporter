@@ -17,7 +17,7 @@ function RepoBadge({ repo }: { repo: RepoConfig }) {
   return (
     <span className="inline-flex items-center gap-1.5 text-xs">
       <span className="text-ui-subtle">{repo.label}</span>
-      <span className="rounded-md bg-ui-brand text-white px-2 py-0.5 font-mono font-semibold">⎇ {st.data.branch}</span>
+      <span className="rounded-md bg-ui-brand text-ui-on-solid px-2 py-0.5 font-mono font-semibold">⎇ {st.data.branch}</span>
       {st.data.dirty && <Tag size="sm" color="orange" variant="light">{t("repos.dirty")}</Tag>}
     </span>
   );

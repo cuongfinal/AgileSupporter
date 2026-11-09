@@ -3,7 +3,7 @@ import { ExternalIcon, RefreshIcon, SearchIcon } from "@/components/icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/router";
 import { type ReactNode, useState } from "react";
-import { Card, ConfirmDelete, CopyButton, Empty, JobProgress, Md, PageHeader, ReloadButton, StaleBanner, StatusTag } from "@/components/ui";
+import { Card, ConfirmDelete, CopyButton, Empty, JobProgress, Loader, Md, PageHeader, ReloadButton, StaleBanner, StatusTag } from "@/components/ui";
 import { http } from "@/lib/client";
 import { type MessageKey, useT } from "@/lib/i18n";
 import { useShallow } from "zustand/react/shallow";
@@ -104,7 +104,7 @@ function Detail({ ticketKey, code, canCode }: { ticketKey: string; code: boolean
   const { job, running } = useTrackedFor("estimate", ticketKey);
   const start = (force: boolean) => void startTracked("estimate", [ticketKey], force, { code: code && canCode });
 
-  if (q.isLoading) return <Spinner />;
+  if (q.isLoading) return <Loader fill />;
   if (q.error) return <p className="text-sm text-ui-error">{(q.error as Error).message}</p>;
   if (!q.data) return null;
   const { ticket, estimate: e, stale } = q.data;
@@ -181,7 +181,7 @@ function Detail({ ticketKey, code, canCode }: { ticketKey: string; code: boolean
         <>
           {!running && <StaleBanner stale={stale} onRerun={() => start(true)} />}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            <div className="bg-ui-brand-surface border border-ui-brand rounded-lg px-4 py-3">
+            <div className="glass border border-l-4 border-l-ui-brand rounded-lg px-4 py-3">
               <div className="text-xs text-ui-brand font-semibold">{t("estimate.ai")}</div>
               <div className="text-3xl font-bold text-ui-brand mt-1">
                 {e.points} <span className="text-sm font-semibold">pts</span>
@@ -189,21 +189,21 @@ function Detail({ ticketKey, code, canCode }: { ticketKey: string; code: boolean
               <div className="text-xs text-ui-subtle mt-0.5">{t("estimate.range", { low: e.low, high: e.high })}</div>
               {e.anchor != null && <div className="text-xs text-ui-subtle">{t("estimate.anchor", { n: e.anchor })}</div>}
             </div>
-            <div className="bg-white border border-ui-border rounded-lg px-4 py-3">
+            <div className="glass border rounded-lg px-4 py-3">
               <div className="text-xs text-ui-secondary">{t("estimate.jira")}</div>
               <div className="text-2xl font-semibold text-ui-primary mt-1">{e.jiraPoints ?? "—"}</div>
               <div className="text-xs text-ui-secondary mt-0.5">
                 {e.jiraPoints == null ? t("estimate.notEstimated") : diff ? t("estimate.diff", { n: diff > 0 ? `+${diff}` : diff }) : "✓"}
               </div>
             </div>
-            <div className="bg-white border border-ui-border rounded-lg px-4 py-3">
+            <div className="glass border rounded-lg px-4 py-3">
               <div className="text-xs text-ui-secondary">{t("estimate.confidence")}</div>
               <div className="mt-2">
                 <Tag color={CONF_COLOR[e.confidence]} variant="light">{t(`estimate.conf.${e.confidence}` as MessageKey)}</Tag>
               </div>
               <div className="text-xs text-ui-secondary mt-1">{e.codeAware ? t("estimate.codeAware") : t("estimate.ticketOnly")}</div>
             </div>
-            <div className="bg-white border border-ui-border rounded-lg px-4 py-3">
+            <div className="glass border rounded-lg px-4 py-3">
               <div className="text-xs text-ui-secondary">{t("estimate.tasks", { n: e.tasks.length })}</div>
               <div className="flex flex-wrap gap-1 mt-2">
                 {e.inScope.map((k) => (
@@ -221,7 +221,7 @@ function Detail({ ticketKey, code, canCode }: { ticketKey: string; code: boolean
               title={t("estimate.brief")}
               actions={<CopyButton text={`${e.key}: ${e.points} pts — ${pick(e.brief)}`} label={t("common.copy")} />}
             >
-              <p className="text-[15px] leading-relaxed font-medium text-ui-primary m-0 border-l-[3px] border-ui-brand pl-3">{pick(e.brief)}</p>
+              <p className="text-title leading-relaxed font-medium text-ui-primary m-0 border-l-[3px] border-ui-brand pl-3">{pick(e.brief)}</p>
             </Card>
           )}
 
@@ -247,7 +247,7 @@ function Detail({ ticketKey, code, canCode }: { ticketKey: string; code: boolean
                   </span>
                   <span className="text-sm">
                     <span className="font-medium text-ui-primary">{pick(x.title)}</span>
-                    {pick(x.detail) && <span className="block text-ui-subtle text-[13px] mt-0.5">{pick(x.detail)}</span>}
+                    {pick(x.detail) && <span className="block text-ui-subtle text-label mt-0.5">{pick(x.detail)}</span>}
                   </span>
                   <span className="text-right">
                     <Tag size="sm" color={SIZE_COLOR[x.size]} variant="light">{x.size}</Tag>
@@ -257,7 +257,7 @@ function Detail({ ticketKey, code, canCode }: { ticketKey: string; code: boolean
             </ul>
           </Card>
 
-          <div className="grid lg:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <Card title={t("estimate.reasons")}>
               <ul className="list-none p-0 m-0 space-y-1.5 text-sm">
                 {e.reasons.map((r, i) => (
@@ -287,7 +287,7 @@ function Detail({ ticketKey, code, canCode }: { ticketKey: string; code: boolean
                         <Tag size="sm" color="primary" variant="light">{r.points} pts</Tag>
                         <span className="text-ui-subtle truncate min-w-0 flex-1">{r.summary}</span>
                       </div>
-                      <div className="text-[13px] text-ui-body mt-0.5">{pick(r.why)}</div>
+                      <div className="text-label text-ui-body mt-0.5">{pick(r.why)}</div>
                     </li>
                   ))}
                 </ul>
@@ -297,7 +297,7 @@ function Detail({ ticketKey, code, canCode }: { ticketKey: string; code: boolean
 
           {(e.split.length > 0 || e.risks.length > 0 || e.assumptions.length > 0 || e.questions.length > 0) && (
             <Card>
-              <div className="grid lg:grid-cols-2 gap-5">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
                 {e.split.length > 0 && (
                   <Block title={t("estimate.split")}>
                     <BiList items={e.split} />
@@ -373,7 +373,7 @@ function HistoryItem({ row, active, onPick, onDelete }: { row: HistoryRow; activ
           <span className="ml-auto font-semibold text-ui-primary">{row.points} pts</span>
           <span className="text-ui-secondary">/ {row.jiraPoints ?? "—"}</span>
         </div>
-        <div className="text-[13px] text-ui-body truncate mt-0.5">{row.title}</div>
+        <div className="text-label text-ui-body truncate mt-0.5">{row.title}</div>
       </button>
       <span className="pr-1 shrink-0">
         <ConfirmDelete iconOnly label={t("estimate.delete")} disabled={running} onConfirm={onDelete} />
@@ -442,7 +442,7 @@ export default function EstimatePage() {
           }}
         >
           <label className="flex-1 min-w-[260px] max-w-[560px]">
-            <span className="block text-[13px] font-medium text-ui-body mb-1">{t("estimate.input")}</span>
+            <span className="block text-label font-medium text-ui-body mb-1">{t("estimate.input")}</span>
             <Input
               key={loaded.join(",")}
               name="keys"
@@ -461,7 +461,7 @@ export default function EstimatePage() {
           </div>
           <label
             className={`flex items-center gap-3 mb-5 px-3 py-2 rounded-md border cursor-pointer ${
-              code && canCode ? "border-ui-brand bg-ui-brand-surface" : "border-ui-border bg-white"
+              code && canCode ? "border-ui-brand bg-ui-brand-surface" : "border-ui-border bg-ui-raised"
             }`}
             title={canCode ? undefined : t("review.noRepos")}
           >
@@ -487,8 +487,8 @@ export default function EstimatePage() {
                 type="button"
                 onClick={() => pick(k)}
                 aria-pressed={k === selected}
-                className={`text-xs px-2.5 py-1 rounded-full border cursor-pointer ${
-                  k === selected ? "bg-ui-brand text-white border-ui-brand" : "bg-white text-ui-body border-ui-border hover:border-ui-brand"
+                className={`text-xs px-2.5 py-1 rounded-md border transition-colors cursor-pointer ${
+                  k === selected ? "bg-ui-brand text-ui-on-solid border-ui-brand" : "bg-ui-raised text-ui-body border-ui-border hover:border-ui-brand"
                 }`}
               >
                 {k}
@@ -500,7 +500,7 @@ export default function EstimatePage() {
 
       <SprintEstimate aiPoints={aiPoints} selectedKey={selected} code={code && canCode} onPick={pick} />
 
-      <div className="grid lg:grid-cols-[minmax(0,1fr)_300px] gap-4 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_300px] gap-4 items-start">
         <div className="min-w-0">
           {selected ? (
             <Detail key={selected} ticketKey={selected} code={code} canCode={canCode} />

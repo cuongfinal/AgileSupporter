@@ -1,41 +1,201 @@
-/* Neutral slate + indigo palette. Tailwind without preflight; the small base reset below + components/kit.tsx carry all component styles. */
+/*
+ * Glassmorphism + Trust & Authority theme. Tailwind without preflight; the small base reset below + components/kit.tsx carry
+ * all component styles.
+ *
+ * Token flow: every raw value is a --ui-* custom property holding a light-dark(<light>, <dark>) pair. The mode follows
+ * the OS (color-scheme: light dark); force one with <html data-theme="light|dark">. `@theme inline` maps the raw values
+ * onto the existing Tailwind color names (bg-ui-*, text-ui-*, border-ui-*), so components only reference semantic tokens.
+ * Radius / shadow / type / motion tokens override Tailwind's own scale so existing utilities pick them up.
+ *
+ * Surfaces: `glass` (panels: header, sidebar, cards) and `glass-float` (popovers, drawer, toast — more opaque so long text
+ * stays readable). Both fall back to solid surfaces without backdrop-filter or with prefers-reduced-transparency.
+ */
 @layer theme, base, components, utilities;
 @import "tailwindcss/theme.css" layer(theme);
 @import "tailwindcss/utilities.css" layer(utilities);
 
+:root {
+  color-scheme: light dark;
+
+  /* backdrop: base canvas + four soft glows give the glass something to refract */
+  --ui-canvas: light-dark(#EEF2F9, #060B18);
+  --ui-glow-1: light-dark(rgb(59 130 246 / 0.26), rgb(37 99 235 / 0.30));
+  --ui-glow-2: light-dark(rgb(30 58 138 / 0.20), rgb(79 70 229 / 0.22));
+  --ui-glow-3: light-dark(rgb(14 165 233 / 0.18), rgb(14 165 233 / 0.14));
+  --ui-glow-4: light-dark(rgb(99 102 241 / 0.16), rgb(30 58 138 / 0.32));
+
+  /* glass surfaces */
+  --ui-raised: light-dark(rgb(255 255 255 / 0.68), rgb(15 23 42 / 0.55));        /* panels, fields */
+  --ui-float: light-dark(rgb(255 255 255 / 0.88), rgb(15 23 42 / 0.88));         /* popovers, drawer, toast */
+  --ui-glass-border: light-dark(rgb(255 255 255 / 0.75), rgb(255 255 255 / 0.10));
+  --ui-glass-highlight: light-dark(rgb(255 255 255 / 0.85), rgb(255 255 255 / 0.06));
+  --ui-blur: 16px;
+
+  /* tints over glass */
+  --ui-surface: light-dark(rgb(15 23 42 / 0.05), rgb(255 255 255 / 0.06));      /* subtle fill, hover */
+  --ui-secondary-surface: light-dark(rgb(15 23 42 / 0.08), rgb(255 255 255 / 0.10));
+
+  /* lines */
+  --ui-border: light-dark(rgb(15 23 42 / 0.10), rgb(255 255 255 / 0.10));       /* dividers (decorative) */
+  --ui-outline: light-dark(#66748A, #6B7A90);                                   /* control boundaries, ≥3:1 (WCAG 1.4.11) */
+
+  /* text: navy-leaning neutrals for an authoritative, corporate read */
+  --ui-primary: light-dark(#0B1426, #F1F5F9);
+  --ui-heading-strong: light-dark(#0A1A3A, #FFFFFF);
+  --ui-heading: light-dark(#132A52, #E2E8F0);
+  --ui-body: light-dark(#1E293B, #CBD5E1);
+  --ui-subtle: light-dark(#334155, #B8C4D6);
+  --ui-secondary: light-dark(#475569, #9AA8BC);       /* meta text */
+  --ui-muted: light-dark(#536175, #8796AC);           /* placeholders, icons */
+  --ui-disabled: light-dark(#94A3B8, #475569);        /* disabled (contrast-exempt) */
+
+  /* brand: trust blue; the navy→blue gradient is reserved for the primary CTA + logo mark */
+  --ui-brand: light-dark(#1D4ED8, #60A5FA);
+  --ui-brand-hover: light-dark(#1E40AF, #93C5FD);
+  --ui-brand-dark: light-dark(#1E3A8A, #BFDBFE);
+  --ui-brand-from: light-dark(#1E3A8A, #93C5FD);
+  --ui-brand-to: light-dark(#2563EB, #60A5FA);
+  --ui-brand-surface: light-dark(rgb(29 78 216 / 0.10), rgb(96 165 250 / 0.14)); /* selected rows / chips */
+  --ui-brand-soft: light-dark(rgb(29 78 216 / 0.30), rgb(96 165 250 / 0.35));   /* selected borders, quote rules */
+  --ui-on-solid: light-dark(#FFFFFF, #0B1426);        /* text/icons on brand, the brand gradient and solid status fills */
+
+  /* status: solid fill ≥4.5:1 with --ui-on-solid; text ≥4.5:1 on glass and on its own -surface tint */
+  --ui-success: light-dark(#166534, #4ADE80);
+  --ui-success-dark: light-dark(#14532D, #86EFAC);
+  --ui-success-surface: light-dark(rgb(22 163 74 / 0.12), rgb(74 222 128 / 0.12));
+  --ui-error: light-dark(#B91C1C, #F87171);
+  --ui-error-dark: light-dark(#991B1B, #FCA5A5);
+  --ui-error-surface: light-dark(rgb(220 38 38 / 0.10), rgb(248 113 113 / 0.12));
+  --ui-warning: light-dark(#B45309, #FBBF24);
+  --ui-warning-dark: light-dark(#92400E, #FCD34D);
+  --ui-warning-surface: light-dark(rgb(245 158 11 / 0.16), rgb(251 191 36 / 0.12));
+  --ui-info: light-dark(#1D4ED8, #60A5FA);
+  --ui-info-surface: light-dark(rgb(37 99 235 / 0.10), rgb(96 165 250 / 0.12));
+  --ui-purple: light-dark(#6D28D9, #A78BFA);
+  --ui-purple-surface: light-dark(rgb(124 58 237 / 0.10), rgb(167 139 250 / 0.12));
+
+  /* interaction */
+  --ui-focus: light-dark(#1E3A8A, #93C5FD);
+  --ui-overlay: light-dark(rgb(15 23 42 / 0.35), rgb(2 6 23 / 0.65));
+  --ui-shadow: light-dark(rgb(30 58 138 / 0.18), rgb(0 0 0 / 0.55));
+  --ui-selection: light-dark(#BFDBFE, #1E3A8A);
+}
+
+:root[data-theme="light"] { color-scheme: light; }
+:root[data-theme="dark"] { color-scheme: dark; }
+
+/* Accessibility + capability fallbacks: solid surfaces, no blur. */
+@media (prefers-reduced-transparency: reduce) {
+  :root {
+    --ui-raised: light-dark(#FFFFFF, #0F172A);
+    --ui-float: light-dark(#FFFFFF, #0F172A);
+    --ui-blur: 0px;
+  }
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  :root {
+    --ui-raised: light-dark(rgb(255 255 255 / 0.94), rgb(15 23 42 / 0.94));
+    --ui-float: light-dark(#FFFFFF, #0F172A);
+  }
+}
+
 @theme inline {
-  --color-ui-surface: #F8FAFC;
-  --color-ui-white: #ffffff;
-  --color-ui-border: #E2E8F0;
-  --color-ui-outline: #CBD5E1;
-  --color-ui-muted: #94A3B8;
-  --color-ui-disabled: #94A3B8;
-  --color-ui-secondary: #64748B;
-  --color-ui-subtle: #475569;
-  --color-ui-body: #334155;
-  --color-ui-primary: #0F172A;
-  --color-ui-brand: #4F46E5;
-  --color-ui-brand-hover: #4338CA;
-  --color-ui-brand-dark: #312E81;
-  --color-ui-brand-surface: #EEF2FF;
-  --color-ui-brand-soft: #C7D2FE;
-  --color-ui-heading: #1E293B;
-  --color-ui-heading-strong: #0F172A;
-  --color-ui-secondary-surface: #F1F5F9;
-  --color-ui-success: #16A34A;
-  --color-ui-success-surface: #F0FDF4;
-  --color-ui-error: #DC2626;
-  --color-ui-error-surface: #FEF2F2;
-  --color-ui-warning: #F59E0B;
-  --color-ui-warning-dark: #92400E;
-  --color-ui-warning-surface: #FEF3C7;
-  --color-ui-info: #2563EB;
-  --color-ui-info-surface: #EFF6FF;
-  --color-ui-error-dark: #B91C1C;
-  --color-ui-success-dark: #15803D;
-  --color-ui-purple: #7C3AED;
-  --color-ui-purple-surface: #F5F3FF;
-  --font-sans: "Noto Sans", sans-serif;
+  /* colors (existing names kept; added: canvas, raised, float, on-solid, focus, overlay) */
+  --color-ui-canvas: var(--ui-canvas);
+  --color-ui-raised: var(--ui-raised);
+  --color-ui-float: var(--ui-float);
+  --color-ui-surface: var(--ui-surface);
+  --color-ui-secondary-surface: var(--ui-secondary-surface);
+  --color-ui-border: var(--ui-border);
+  --color-ui-outline: var(--ui-outline);
+  --color-ui-muted: var(--ui-muted);
+  --color-ui-disabled: var(--ui-disabled);
+  --color-ui-secondary: var(--ui-secondary);
+  --color-ui-subtle: var(--ui-subtle);
+  --color-ui-body: var(--ui-body);
+  --color-ui-primary: var(--ui-primary);
+  --color-ui-heading: var(--ui-heading);
+  --color-ui-heading-strong: var(--ui-heading-strong);
+  --color-ui-brand: var(--ui-brand);
+  --color-ui-brand-hover: var(--ui-brand-hover);
+  --color-ui-brand-dark: var(--ui-brand-dark);
+  --color-ui-brand-surface: var(--ui-brand-surface);
+  --color-ui-brand-soft: var(--ui-brand-soft);
+  --color-ui-on-solid: var(--ui-on-solid);
+  --color-ui-success: var(--ui-success);
+  --color-ui-success-dark: var(--ui-success-dark);
+  --color-ui-success-surface: var(--ui-success-surface);
+  --color-ui-error: var(--ui-error);
+  --color-ui-error-dark: var(--ui-error-dark);
+  --color-ui-error-surface: var(--ui-error-surface);
+  --color-ui-warning: var(--ui-warning);
+  --color-ui-warning-dark: var(--ui-warning-dark);
+  --color-ui-warning-surface: var(--ui-warning-surface);
+  --color-ui-info: var(--ui-info);
+  --color-ui-info-surface: var(--ui-info-surface);
+  --color-ui-purple: var(--ui-purple);
+  --color-ui-purple-surface: var(--ui-purple-surface);
+  --color-ui-focus: var(--ui-focus);
+  --color-ui-overlay: var(--ui-overlay);
+
+  /* typography: "Corporate Trust" pairing — Lexend display, Source Sans 3 text (both ship the Vietnamese subset) */
+  --font-sans: "Source Sans 3", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: "Lexend", "Source Sans 3", ui-sans-serif, system-ui, sans-serif;
+  --text-2xs: 0.6875rem;          /* 11px — meta labels, chips */
+  --text-2xs--line-height: 1rem;
+  --text-label: 0.8125rem;        /* 13px — field labels, compact controls */
+  --text-label--line-height: 1.25rem;
+  --text-title: 0.9375rem;        /* 15px — card / section titles */
+  --text-title--line-height: 1.375rem;
+
+  /* radii: soft, glass-pane geometry */
+  --radius: 6px;
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 14px;
+  --radius-xl: 18px;
+
+  /* elevation: blue-tinted, diffuse */
+  --shadow-2xs: 0 1px 1px 0 var(--ui-shadow);
+  --shadow-xs: 0 1px 2px 0 var(--ui-shadow);
+  --shadow-sm: 0 2px 6px -2px var(--ui-shadow);
+  --shadow: 0 1px 3px 0 var(--ui-shadow);
+  --shadow-md: 0 6px 16px -6px var(--ui-shadow);
+  --shadow-lg: 0 12px 32px -10px var(--ui-shadow);
+  --shadow-xl: 0 18px 44px -12px var(--ui-shadow);
+  --shadow-2xl: 0 24px 64px -16px var(--ui-shadow);
+
+  /* motion */
+  --default-transition-duration: 200ms;
+  --default-transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+}
+
+/* Glass panel: pair with a border width utility (border, border-b, …) — this only sets its colour. */
+@utility glass {
+  background-color: var(--ui-raised);
+  border-color: var(--ui-glass-border);
+  box-shadow: inset 0 1px 0 0 var(--ui-glass-highlight), 0 8px 32px -14px var(--ui-shadow);
+  backdrop-filter: blur(var(--ui-blur)) saturate(160%);
+}
+
+/* Floating glass (popover, drawer, toast): more opaque, stronger lift. */
+@utility glass-float {
+  background-color: var(--ui-float);
+  border-color: var(--ui-glass-border);
+  box-shadow: inset 0 1px 0 0 var(--ui-glass-highlight), 0 18px 48px -12px var(--ui-shadow);
+  backdrop-filter: blur(calc(var(--ui-blur) * 1.5)) saturate(180%);
+}
+
+/* Loading ring: a conic "comet" arc masked to a ring; colour comes from currentColor, thickness scales with size. */
+@utility spinner-ring {
+  background: conic-gradient(from 0deg, transparent 0 10%, currentColor 100%);
+  mask: radial-gradient(farthest-side, transparent 76%, #000 78%);
+}
+
+/* Primary CTA + logo mark. */
+@utility bg-brand-gradient {
+  background-image: linear-gradient(135deg, var(--ui-brand-from), var(--ui-brand-to));
 }
 
 @layer base {
@@ -52,12 +212,24 @@
   }
 
   body {
-    background: #F8FAFC;
-    color: #0F172A;
-    font-family: "Noto Sans", sans-serif;
+    min-height: 100vh;
+    background-color: var(--ui-canvas);
+    background-image:
+      radial-gradient(48rem 36rem at 0% 0%, var(--ui-glow-1), transparent 70%),
+      radial-gradient(44rem 32rem at 100% 0%, var(--ui-glow-2), transparent 70%),
+      radial-gradient(48rem 36rem at 100% 100%, var(--ui-glow-3), transparent 70%),
+      radial-gradient(40rem 32rem at 0% 100%, var(--ui-glow-4), transparent 70%);
+    background-attachment: fixed;
+    color: var(--ui-primary);
+    font-family: var(--font-sans);
     font-size: 14px;
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
+  }
+
+  h1, h2, h3 {
+    font-family: var(--font-display);
+    letter-spacing: -0.01em;
   }
 
   h1, h2, h3, h4, p, ul, ol, pre {
@@ -83,23 +255,47 @@
   }
 
   a {
-    color: #1E293B;
+    color: var(--ui-brand);
+    text-underline-offset: 2px;
+  }
+
+  ::selection {
+    background: var(--ui-selection);
+  }
+
+  /* One keyboard focus treatment for every interactive element; components only override where they draw their own. */
+  :focus-visible {
+    outline: 2px solid var(--ui-focus);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *:not(.animate-spin),
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 }
 
 .md {
-  color: #334155;
+  color: var(--ui-body);
   overflow-wrap: anywhere;
 }
 .md > * + * { margin-top: 0.5rem; }
-.md h1, .md h2, .md h3, .md h4 { font-size: 0.95rem; font-weight: 600; color: #0F172A; }
+.md h1, .md h2, .md h3, .md h4 { font-size: 0.95rem; font-weight: 600; color: var(--ui-heading); }
 .md ul, .md ol { padding-left: 1.25rem; }
 .md ul { list-style: disc; }
 .md ol { list-style: decimal; }
 .md li > ul { list-style: circle; }
 .md li + li { margin-top: 0.15rem; }
-.md code { background: #F8FAFC; border-radius: 4px; padding: 0 4px; font-size: 0.85em; }
-.md pre { background: #F8FAFC; padding: 0.75rem; border-radius: 6px; overflow: auto; }
+.md code { background: var(--ui-secondary-surface); border-radius: var(--radius-xs); padding: 0 4px; font-size: 0.85em; }
+.md pre { background: var(--ui-secondary-surface); padding: 0.75rem; border-radius: var(--radius-md); overflow: auto; }
+.md pre code { background: none; padding: 0; }
 .md table { border-collapse: collapse; width: 100%; font-size: 0.85rem; }
-.md th, .md td { border: 1px solid #E2E8F0; padding: 4px 8px; text-align: left; vertical-align: top; }
-.md blockquote { border-left: 3px solid #C7D2FE; padding-left: 0.75rem; color: #475569; }
+.md th, .md td { border: 1px solid var(--ui-border); padding: 4px 8px; text-align: left; vertical-align: top; }
+.md th { background: var(--ui-surface); font-weight: 600; }
+.md blockquote { border-left: 3px solid var(--ui-brand-soft); padding-left: 0.75rem; color: var(--ui-subtle); }

@@ -1,9 +1,9 @@
-import { Button, Input, Spinner, Tag, Textarea, Toggle } from "@/components/kit";
-import { AddIcon, CheckIcon, CopyIcon, EditIcon } from "@/components/icons";
+import { Button, Input, Tag, Textarea, Toggle } from "@/components/kit";
+import { AddIcon, CheckIcon, CopyIcon, EditIcon, WarningIcon } from "@/components/icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { Select } from "@/components/Select";
-import { Card, ConfirmDelete, Empty, JobProgress, Kpi, PageHeader, ReloadButton } from "@/components/ui";
+import { Card, ConfirmDelete, Empty, JobProgress, Kpi, Loader, PageHeader, ReloadButton } from "@/components/ui";
 import SprintPicker from "@/features/SprintPicker";
 import { download, http } from "@/lib/client";
 import { type MessageKey, useT } from "@/lib/i18n";
@@ -67,7 +67,7 @@ function TicketChip({ k, note }: { k: string; note?: string }) {
       href={`${base}/browse/${k}`}
       target="_blank"
       rel="noreferrer"
-      className="inline-flex items-center rounded border border-ui-border bg-white px-1.5 py-0.5 text-xs font-semibold text-ui-brand no-underline hover:border-ui-brand"
+      className="inline-flex items-center rounded border border-ui-border bg-ui-raised px-1.5 py-0.5 text-xs font-semibold text-ui-brand no-underline hover:border-ui-brand"
     >
       {label}
     </a>
@@ -137,11 +137,11 @@ function FactsView({ f }: { f: RetroFacts }) {
           {t("retro.velocity", { list: f.velocity.map((v) => `${v.name} ${v.done}`).join(" · ") })} · {f.sprint.name} {amount(f.completed)}
         </p>
       )}
-      <details className="bg-white border border-ui-border rounded-lg">
-        <summary className="cursor-pointer px-4 py-3 text-[15px] font-semibold text-ui-heading">
+      <details className="glass border rounded-lg">
+        <summary className="cursor-pointer px-4 py-3 text-title font-semibold text-ui-heading">
           {t("retro.facts")} <span className="text-xs font-normal text-ui-secondary ml-2">{t("retro.factsHint")}</span>
         </summary>
-        <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-5 px-4 pb-4 pt-1">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 px-4 pb-4 pt-1">
           {groups.map(([label, items]) => (
             <FactGroup key={label} label={t(label)} items={items} />
           ))}
@@ -215,7 +215,7 @@ function RetroCardView({
   const style = COLUMN_STYLE[card.column];
   if (editing)
     return (
-      <div className={`bg-white border border-ui-border border-l-4 ${style.edge} rounded-md p-3 shadow-sm`}>
+      <div className={`bg-ui-raised border border-ui-border border-l-4 ${style.edge} rounded-md p-3`}>
         <CardEditor
           initial={card}
           onSave={(c) => {
@@ -227,12 +227,13 @@ function RetroCardView({
       </div>
     );
   return (
-    <article className={`group bg-white border border-ui-border border-l-4 ${style.edge} rounded-md p-3 shadow-sm ${card.pushed ? "opacity-60" : ""}`}>
+    <article className={`group bg-ui-raised border border-ui-border border-l-4 ${style.edge} rounded-md p-3 ${card.pushed ? "opacity-60" : ""}`}>
       <div className="flex items-start justify-between gap-2">
         <h3 className="text-sm font-semibold text-ui-primary leading-snug">{text(card.title, lang)}</h3>
         {card.pushed && (
           <Tag size="sm" color="green" variant="light">
-            ✓ {t("retro.pushed")}
+            <CheckIcon size={12} />
+            {t("retro.pushed")}
           </Tag>
         )}
       </div>
@@ -276,9 +277,9 @@ function RetroCardView({
         </Button>
         <span className="flex-1" />
         {card.source === "manual" ? (
-          <span className="text-[11px] text-ui-secondary">{t("retro.manual")}</span>
+          <span className="text-2xs text-ui-secondary">{t("retro.manual")}</span>
         ) : card.edited ? (
-          <span className="text-[11px] text-ui-secondary">{t("retro.edited")}</span>
+          <span className="text-2xs text-ui-secondary">{t("retro.edited")}</span>
         ) : null}
         <ConfirmDelete iconOnly onConfirm={onDelete} />
       </div>
@@ -379,7 +380,7 @@ function Board({ sprintId, view }: { sprintId: number; view: RetroView }) {
           </Button>
         </div>
       </div>
-      <div className="grid lg:grid-cols-3 gap-4 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
         {COLUMNS.map((col) => {
           const list = cards.filter((c) => c.column === col);
           const shown = list.filter((c) => !hidePushed || !c.pushed || !written(c));
@@ -469,19 +470,22 @@ function Generate({ sprintId, view }: { sprintId: number; view: RetroView }) {
     >
       {view.stale && !busy && (
         <div role="status" className="flex flex-wrap items-center justify-between gap-2 rounded-md px-3 py-2 mb-3 text-sm border bg-ui-warning-surface border-ui-warning text-ui-warning-dark">
-          <span>⚠ {t("retro.stale")}</span>
+          <span>
+            <WarningIcon size={14} className="inline -mt-0.5 mr-1.5" />
+            {t("retro.stale")}
+          </span>
         </div>
       )}
-      <div className="grid md:grid-cols-[1fr_auto] gap-3 items-end">
+      <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-3 items-end">
         <label className="block">
-          <span className="block text-[13px] font-medium text-ui-body mb-1">{t("retro.notes")}</span>
+          <span className="block text-label font-medium text-ui-body mb-1">{t("retro.notes")}</span>
           <Textarea size="sm" fullWidth minRows={2} value={notes} placeholder={t("retro.notesHint")} onChange={(e) => setNotes(e.target.value)} />
         </label>
         <div className="flex flex-col items-end gap-1">
           <Button loading={busy || starting} onClick={() => void start()}>
             {board?.generatedAt ? t("retro.regenerate") : t("retro.generate")}
           </Button>
-          {board?.generatedAt && <span className="text-[11px] text-ui-secondary">{t("retro.regenHint")}</span>}
+          {board?.generatedAt && <span className="text-2xs text-ui-secondary">{t("retro.regenHint")}</span>}
         </div>
       </div>
       {mine && job && (job.status === "running" || job.status === "error") && (
@@ -516,7 +520,7 @@ export default function RetroPage() {
           </>
         }
       />
-      {q.isLoading && <Spinner />}
+      {q.isLoading && <Loader />}
       {q.error && <p className="text-sm text-ui-error">{(q.error as Error).message}</p>}
       {view && sprintId !== null && (
         <div className="space-y-5">

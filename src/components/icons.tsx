@@ -18,6 +18,8 @@ import {
   Info,
   Lightbulb,
   ListTodo,
+  Monitor,
+  Moon,
   type LucideIcon,
   type LucideProps,
   Pencil,
@@ -26,8 +28,10 @@ import {
   Search,
   Settings,
   SquareCheck,
+  Sun,
   Timer,
   Trash2,
+  TriangleAlert,
   X,
 } from "lucide-react";
 
@@ -66,3 +70,7 @@ export const ChevronDownIcon = make(ChevronDown);
 export const ChevronRightIcon = make(ChevronRight);
 export const CloseIcon = make(X);
 export const TimerIcon = make(Timer);
+export const WarningIcon = make(TriangleAlert);
+export const SystemThemeIcon = make(Monitor);
+export const LightThemeIcon = make(Sun);
+export const DarkThemeIcon = make(Moon);

@@ -3,7 +3,7 @@ import { AddIcon, ArrowDownIcon, ArrowUpIcon, DownloadIcon, DragIcon, EyeIcon, R
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Card, ConfirmDelete, Counter, Empty, Field, JobProgress, PageHeader, ReloadButton, StatusTag } from "@/components/ui";
+import { Card, ConfirmDelete, Counter, Empty, Field, JobProgress, Loader, PageHeader, ReloadButton, StatusTag } from "@/components/ui";
 import DemoRecorder, { useRecOptions } from "@/features/DemoRecorder";
 import SprintPicker from "@/features/SprintPicker";
 import { http } from "@/lib/client";
@@ -97,7 +97,7 @@ function StoryCard({
   ].filter(Boolean) as string[];
 
   return (
-    <div className="bg-white border border-ui-border rounded-lg" {...dragProps}>
+    <div className="glass border rounded-lg" {...dragProps}>
       <div className="flex items-center gap-2 px-3 py-2 border-b border-ui-border">
         <span className="cursor-grab text-ui-muted [&_svg]:w-4 [&_svg]:h-4" title={t("demo.drag")} aria-hidden>
           <DragIcon />
@@ -126,7 +126,7 @@ function StoryCard({
               ))}
             </ul>
           )}
-          <div className="grid md:grid-cols-[1fr_180px_180px] gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-[1fr_180px_180px] gap-3">
             <Field label={t("demo.title")} hint={<Counter value={story.title} max={70} />}>
               <Input size="sm" fullWidth value={story.title} onChange={(e) => set({ title: e.target.value })} />
             </Field>
@@ -137,7 +137,7 @@ function StoryCard({
               <Input size="sm" fullWidth value={story.status} onChange={(e) => set({ status: e.target.value })} />
             </Field>
           </div>
-          <div className="grid md:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <Field label={t("demo.headlineLead")}>
               <Input size="sm" fullWidth value={story.headline[0]} onChange={(e) => set({ headline: [e.target.value, story.headline[1]] })} />
             </Field>
@@ -156,7 +156,7 @@ function StoryCard({
           </Field>
           <div>
             <div className="flex items-center justify-between mb-2">
-              <span className="text-[13px] font-medium">{t("demo.scenarios", { n: sc.length })}</span>
+              <span className="text-label font-medium">{t("demo.scenarios", { n: sc.length })}</span>
               <Button size="sm" variant="ghost" leftIcon={<AddIcon />} disabled={sc.length >= 6} onClick={() => set({ scenarios: [...sc, { name: "", steps: [] }] })}>
                 {t("demo.addScenario")}
               </Button>
@@ -235,7 +235,7 @@ function BuildResult({ meta, onPdf, pdfJob }: { meta: BuildMeta; onPdf: () => vo
         )}
       </div>
       {pdfJob?.status === "error" && <p className="text-xs text-ui-error whitespace-pre-wrap">{pdfJob.error}</p>}
-      {meta.hasPdf && <iframe title={t("demo.previewPdf")} src={file("deck.pdf", true)} className="w-full h-[640px] border border-ui-border rounded-md bg-white" />}
+      {meta.hasPdf && <iframe title={t("demo.previewPdf")} src={file("deck.pdf", true)} className="w-full h-[640px] border border-ui-border rounded-md bg-ui-raised" />}
       <p className="text-xs text-ui-secondary">{t("demo.screenshotsReminder")}</p>
     </div>
   );
@@ -325,7 +325,7 @@ export default function DemoPage() {
         }
       />
 
-      <div className="grid lg:grid-cols-2 gap-4 mb-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
         <Card title={t("demo.template")} actions={<Link href="/settings#template" className="text-xs">{t("demo.manage")}</Link>}>
           {active ? (
             <div className="text-sm">
@@ -368,7 +368,7 @@ export default function DemoPage() {
       >
         {tickets.isLoading && <Spinner size="sm" />}
         {!tickets.isLoading && !storyTickets.length && <Empty>{t("sprint.empty")}</Empty>}
-        <div className="grid md:grid-cols-2 gap-x-6 gap-y-1 max-h-72 overflow-auto">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-1 max-h-72 overflow-auto">
           {storyTickets.map((x) => (
             <label key={x.key} className="flex items-center gap-2 text-sm py-1 cursor-pointer min-w-0">
               <Checkbox
@@ -400,7 +400,7 @@ export default function DemoPage() {
       </Card>
 
       <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
-        <h2 className="text-[15px] font-semibold text-ui-heading">
+        <h2 className="text-title font-semibold text-ui-heading">
           {t("demo.draft", { n: stories.length })}{" "}
           <span className="text-xs font-normal text-ui-secondary">{saving === "saving" ? t("demo.saving") : saving === "saved" ? t("demo.saved") : ""}</span>
         </h2>
@@ -422,9 +422,9 @@ export default function DemoPage() {
           <DemoRecorder stories={stories} />
         </div>
       )}
-      <div className="grid xl:grid-cols-[minmax(0,1fr)_420px] gap-4">
+      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_420px] gap-4">
         <div className="space-y-3 min-w-0">
-          {loading && <Spinner />}
+          {loading && <Loader />}
           {!loading && !stories.length && (
             <Card>
               <Empty>{t("demo.noDraft")}</Empty>

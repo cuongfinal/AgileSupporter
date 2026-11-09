@@ -1,8 +1,9 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useState } from "react";
-import { Button, Checkbox, Input, Spinner, Tag } from "@/components/kit";
-import { Card, Empty, PageHeader } from "@/components/ui";
+import { WarningIcon } from "@/components/icons";
+import { Button, Checkbox, Input, Tag } from "@/components/kit";
+import { Card, Empty, Loader, PageHeader } from "@/components/ui";
 import { http } from "@/lib/client";
 import { useT } from "@/lib/i18n";
 import { useSettings, useSprintPick, useSprints } from "@/lib/queries";
@@ -76,7 +77,7 @@ export default function LogTimePage() {
   const dayName = (d: string) =>
     new Date(`${d}T00:00:00`).toLocaleDateString(lang === "vi" ? "vi-VN" : "en-GB", { weekday: "short", day: "2-digit", month: "2-digit", year: "numeric" });
 
-  if (settings.isLoading) return <Spinner />;
+  if (settings.isLoading) return <Loader fill />;
   if (!enabled)
     return (
       <>
@@ -94,17 +95,18 @@ export default function LogTimePage() {
       <PageHeader title={t("nav.logtime")} subtitle={t("logtime.subtitle")} />
       {missing && (
         <div className="mb-4 rounded-md border border-ui-warning bg-ui-warning-surface px-3 py-2 text-sm text-ui-warning-dark">
-          ⚠ {t("logtime.notSetUp")} <Link href="/settings#features">{t("logtime.openSettings")}</Link>
+          <WarningIcon size={14} className="inline -mt-0.5 mr-1.5" />
+          {t("logtime.notSetUp")} <Link href="/settings#features">{t("logtime.openSettings")}</Link>
         </div>
       )}
       <Card className="mb-4">
         <div className="flex flex-wrap items-end gap-3">
           <label className="block">
-            <span className="block text-[13px] font-medium text-ui-body mb-1">{t("logtime.from")}</span>
+            <span className="block text-label font-medium text-ui-body mb-1">{t("logtime.from")}</span>
             <Input size="sm" type="date" value={from} onChange={(e) => setRange(e.target.value, to)} />
           </label>
           <label className="block">
-            <span className="block text-[13px] font-medium text-ui-body mb-1">{t("logtime.to")}</span>
+            <span className="block text-label font-medium text-ui-body mb-1">{t("logtime.to")}</span>
             <Input size="sm" type="date" value={to} onChange={(e) => setRange(from, e.target.value)} />
           </label>
           <div className="flex flex-wrap gap-1.5 pb-0.5">
@@ -136,7 +138,7 @@ export default function LogTimePage() {
           )
         }
       >
-        {q.isLoading && <Spinner />}
+        {q.isLoading && <Loader />}
         {q.error && <p className="text-sm text-ui-error">{(q.error as Error).message}</p>}
         {from > to && <p className="text-sm text-ui-error">{t("logtime.badRange")}</p>}
         {q.data && !days.length && <p className="text-sm text-ui-secondary">{t("logtime.noDays")}</p>}
@@ -146,7 +148,7 @@ export default function LogTimePage() {
               const on = !skipped.has(d);
               return (
                 <li key={d}>
-                  <label className={`flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm ${on ? "border-ui-brand-soft bg-ui-brand-surface" : "border-ui-border bg-white text-ui-secondary"}`}>
+                  <label className={`flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm ${on ? "border-ui-brand-soft bg-ui-brand-surface" : "border-ui-border bg-ui-raised text-ui-secondary"}`}>
                     <Checkbox
                       size="sm"
                       checked={on}

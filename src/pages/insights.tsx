@@ -1,9 +1,9 @@
-import { Button, Spinner, TabHeader, TabList, TabListItem, Tabs, Tag } from "@/components/kit";
+import { Button, TabHeader, TabList, TabListItem, Tabs, Tag } from "@/components/kit";
 import { DownloadIcon } from "@/components/icons";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useState } from "react";
-import { Card, CopyButton, Kpi, Md, PageHeader, StatusTag } from "@/components/ui";
+import { Card, CopyButton, Kpi, Loader, Md, PageHeader, StatusTag } from "@/components/ui";
 import SprintPicker from "@/features/SprintPicker";
 import { download, http } from "@/lib/client";
 import { type MessageKey, useT } from "@/lib/i18n";
@@ -58,7 +58,7 @@ function HealthView() {
   const { t } = useT();
   const { sprintId } = useSprintPick();
   const q = useQuery({ queryKey: ["health", sprintId], queryFn: () => http.get<Health>(`/api/insights/health?sprintId=${sprintId}`), enabled: sprintId !== null });
-  if (q.isLoading) return <Spinner />;
+  if (q.isLoading) return <Loader fill />;
   if (q.error) return <p className="text-sm text-ui-error">{(q.error as Error).message}</p>;
   const h = q.data;
   if (!h) return null;
@@ -82,7 +82,7 @@ function HealthView() {
         <Kpi label={t("insights.items")} value={h.counts.new + h.counts.indeterminate + h.counts.done} hint={t("insights.itemsHint", { todo: h.counts.new, doing: h.counts.indeterminate, done: h.counts.done })} />
         <Kpi label={t("insights.atRisk")} value={h.carryOver.length + h.blocked.length} hint={t("insights.atRiskHint", { c: h.carryOver.length, b: h.blocked.length })} />
       </div>
-      <div className="grid lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <Card title={t("insights.carryOver", { n: h.carryOver.length })}>
           <IssueList items={h.carryOver} reasons />
         </Card>
@@ -117,7 +117,7 @@ function Report() {
       }
     >
       <p className="text-xs text-ui-secondary mb-3">{t("report.hint")}</p>
-      {q.isLoading && <Spinner />}
+      {q.isLoading && <Loader />}
       {q.error && <p className="text-sm text-ui-error">{(q.error as Error).message}</p>}
       {q.data && <Md>{q.data.markdown}</Md>}
     </Card>

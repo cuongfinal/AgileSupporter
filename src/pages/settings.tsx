@@ -2,7 +2,7 @@ import { Button, Input, Segmented, SegmentedItem, Spinner, Tag, Toggle } from "@
 import { AddIcon, CheckCircleIcon, DownloadIcon, RefreshIcon, SearchIcon, TrashIcon, UploadIcon } from "@/components/icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type ReactNode, useEffect, useRef, useState } from "react";
-import { Card, Field, JobProgress, PageHeader } from "@/components/ui";
+import { Card, Field, JobProgress, Loader, PageHeader } from "@/components/ui";
 import { http, useJob } from "@/lib/client";
 import { Select } from "@/components/Select";
 import { useT } from "@/lib/i18n";
@@ -156,7 +156,7 @@ function JiraSection({ s }: { s: PublicSettings }) {
       }
     >
       <p className="text-xs text-ui-secondary mb-4">{t("settings.jiraReadOnly")}</p>
-      <div className="grid md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Field label={t("settings.baseUrl")}>
           <Input size="sm" fullWidth value={jira.baseUrl} onChange={(e) => set("baseUrl", e.target.value)} />
         </Field>
@@ -189,7 +189,7 @@ function JiraSection({ s }: { s: PublicSettings }) {
                 set("boardId", String(b.id));
                 setBoards(null);
               }}
-              className="w-full text-left px-3 py-2 text-sm bg-white hover:bg-ui-brand-surface border-0 border-b border-ui-border cursor-pointer flex justify-between"
+              className="w-full text-left px-3 py-2 text-sm bg-ui-raised hover:bg-ui-brand-surface border-0 border-b border-ui-border cursor-pointer flex justify-between"
             >
               <span>
                 <b>{b.id}</b> · {b.name}
@@ -207,7 +207,7 @@ function JiraSection({ s }: { s: PublicSettings }) {
           {t("settings.detectFields")}
         </Button>
       </div>
-      <div className="grid md:grid-cols-3 gap-4 mt-2">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2">
         {(
           [
             ["spField", "settings.spField", "sp"],
@@ -300,12 +300,12 @@ function AiSection({ s }: { s: PublicSettings }) {
       {status.isLoading ? (
         <Spinner size="sm" />
       ) : (
-        <div className="grid md:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <CliRow c={find("claude")} active={ai.provider === "claude"} />
           <CliRow c={find("copilot")} active={ai.provider === "copilot"} />
         </div>
       )}
-      <div className="grid md:grid-cols-2 gap-4 mt-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
         <Field label={t("settings.claudeBin")} hint={t("settings.binHint")}>
           <Input size="sm" fullWidth value={ai.claudeBin} onChange={(e) => setAi({ ...ai, claudeBin: e.target.value })} />
         </Field>
@@ -335,7 +335,7 @@ function BranchBadge({ branch, detached, dirty }: { branch: string; detached: bo
   const { t } = useT();
   return (
     <span className="inline-flex items-center gap-1.5">
-      <span className="inline-flex items-center gap-1 rounded-md bg-ui-brand text-white px-2.5 py-0.5 text-[13px] font-semibold font-mono">
+      <span className="inline-flex items-center gap-1 rounded-md bg-ui-brand text-ui-on-solid px-2.5 py-0.5 text-label font-semibold font-mono">
         <span aria-hidden>⎇</span>
         {branch}
       </span>
@@ -419,10 +419,10 @@ function RepoRow({ repo, onChange }: { repo: RepoConfig; onChange: (r: RepoConfi
       )}
       {repo.path && st?.ok && (
         <div className="flex flex-wrap items-end gap-3 mt-3">
-          <div className="min-w-[260px] flex-1">
-            <div className="text-[13px] font-medium text-ui-body mb-1">{t("repos.switchTo", { n: allBranches.length })}</div>
-            <div className="flex gap-2">
-              <div className="w-56 shrink-0">
+          <div className="min-w-0 sm:min-w-[260px] flex-1">
+            <div className="text-label font-medium text-ui-body mb-1">{t("repos.switchTo", { n: allBranches.length })}</div>
+            <div className="flex flex-wrap gap-2">
+              <div className="w-full sm:w-56 shrink-0">
                 <Input
                   size="sm"
                   fullWidth
@@ -432,7 +432,7 @@ function RepoRow({ repo, onChange }: { repo: RepoConfig; onChange: (r: RepoConfi
                   onChange={(e) => setBranchQuery(e.target.value)}
                 />
               </div>
-              <div className="flex-1 min-w-0">
+              <div className="flex-1 min-w-[160px]">
                 <Select
                   size="sm"
                   fullWidth
@@ -544,7 +544,10 @@ function TemplateSection({ s }: { s: PublicSettings }) {
       <div className="flex flex-wrap items-center justify-between gap-2 mb-4 rounded-md bg-ui-surface px-3 py-2">
         <span className="text-sm">
           {py.data?.ready ? (
-            <span className="text-ui-success font-medium">✓ {t("tpl.pythonReady", { msg: py.data.message })}</span>
+            <span className="inline-flex items-center gap-1 text-ui-success font-medium">
+              <CheckCircleIcon size={14} />
+              {t("tpl.pythonReady", { msg: py.data.message })}
+            </span>
           ) : (
             <span className="text-ui-warning-dark">{t("tpl.pythonMissing", { msg: py.data?.message ?? "…" })}</span>
           )}
@@ -705,7 +708,7 @@ function GlossarySection({ s }: { s: PublicSettings }) {
           <span />
         </div>
         {rows.map((r, i) => (
-          <div key={i} className="grid md:grid-cols-[1fr_1fr_1fr_auto_auto] gap-2 items-center">
+          <div key={i} className="grid grid-cols-1 md:grid-cols-[1fr_1fr_1fr_auto_auto] gap-2 items-center">
             <Input size="sm" fullWidth value={r.term} onChange={(e) => set(i, { term: e.target.value })} />
             <Input size="sm" fullWidth value={r.en} disabled={r.keep} onChange={(e) => set(i, { en: e.target.value })} />
             <Input size="sm" fullWidth value={r.vi} disabled={r.keep} onChange={(e) => set(i, { vi: e.target.value })} />
@@ -732,7 +735,7 @@ function JiraWriteForm({ s }: { s: PublicSettings }) {
   return (
     <div className="mt-3 max-w-2xl space-y-3">
       <p className="text-xs text-ui-secondary">{t("settings.aiFieldsHint")}</p>
-      <div className="grid sm:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <Field label={t("settings.aiActionField")}>
           <Input size="sm" fullWidth value={f.aiActionField} onChange={(e) => setF({ ...f, aiActionField: e.target.value })} />
         </Field>
@@ -795,7 +798,7 @@ function RecordingSettingsForm({ s }: { s: PublicSettings }) {
       <Field label={t("rec.appUrl")} hint={t("rec.appUrlHint")}>
         <Input size="sm" fullWidth value={r.appUrl} onChange={(e) => setR({ ...r, appUrl: e.target.value })} />
       </Field>
-      <div className="grid sm:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <Field label={t("rec.browser")} hint={t("rec.browserHint")}>
           <Segmented size="sm" selectedIndex={r.browser === "chrome" ? 0 : 1} onChange={(i) => setR({ ...r, browser: i === 0 ? "chrome" : "chromium" })}>
             <SegmentedItem>Chrome</SegmentedItem>
@@ -804,9 +807,9 @@ function RecordingSettingsForm({ s }: { s: PublicSettings }) {
         </Field>
         <Field label={t("rec.size")}>
           <div className="flex items-center gap-1">
-            <Input size="sm" inputMode="numeric" value={String(r.width)} onChange={(e) => setR({ ...r, width: Number(e.target.value.replace(/\D/g, "")) || 0 })} />
+            <Input size="sm" className="min-w-0 flex-1" inputMode="numeric" value={String(r.width)} onChange={(e) => setR({ ...r, width: Number(e.target.value.replace(/\D/g, "")) || 0 })} />
             <span className="text-ui-secondary">×</span>
-            <Input size="sm" inputMode="numeric" value={String(r.height)} onChange={(e) => setR({ ...r, height: Number(e.target.value.replace(/\D/g, "")) || 0 })} />
+            <Input size="sm" className="min-w-0 flex-1" inputMode="numeric" value={String(r.height)} onChange={(e) => setR({ ...r, height: Number(e.target.value.replace(/\D/g, "")) || 0 })} />
           </div>
         </Field>
       </div>
@@ -832,7 +835,7 @@ function RecordingSettingsForm({ s }: { s: PublicSettings }) {
       ) : r.tts.provider === "openai" ? (
         <>
           <SecretInput name="openai.key" label={t("rec.openaiKey")} s={s} />
-          <div className="grid sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Field label={t("rec.voice")}>
               <Select
                 size="sm"
@@ -852,7 +855,7 @@ function RecordingSettingsForm({ s }: { s: PublicSettings }) {
       ) : (
         <>
           <SecretInput name="elevenlabs.key" label={t("rec.elevenKey")} s={s} />
-          <div className="grid sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Field label={t("rec.voiceId")} hint={t("rec.voiceIdHint")}>
               <Input size="sm" fullWidth value={r.tts.elevenVoiceId} onChange={(e) => setTts({ elevenVoiceId: e.target.value.trim() })} />
             </Field>
@@ -901,7 +904,7 @@ function LogTimeForm({ s }: { s: PublicSettings }) {
       <Field label={t("logtime.baseUrl")}>
         <Input size="sm" fullWidth value={f.baseUrl} onChange={(e) => setF({ ...f, baseUrl: e.target.value })} />
       </Field>
-      <div className="grid sm:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <Field label={t("logtime.loginName")}>
           <Input size="sm" fullWidth autoComplete="off" value={f.loginName} onChange={(e) => setF({ ...f, loginName: e.target.value })} />
         </Field>
@@ -917,7 +920,7 @@ function LogTimeForm({ s }: { s: PublicSettings }) {
       </div>
       <SecretInput name="timetracker.password" label={t("logtime.password")} s={s} />
       <div>
-        <div className="text-[13px] font-medium text-ui-body mb-1">{t("logtime.slots")}</div>
+        <div className="text-label font-medium text-ui-body mb-1">{t("logtime.slots")}</div>
         <div className="space-y-2">
           {f.slots.map((slot, i) => (
             <div key={i} className="flex flex-wrap items-center gap-2">
@@ -970,7 +973,7 @@ function FeaturesSection({ s }: { s: PublicSettings }) {
   const save = useSave();
   const row = (label: string, hint: string, checked: boolean, onChange: (v: boolean) => void, extra?: ReactNode) => (
     <div className="flex items-start justify-between gap-4 py-3 border-b border-ui-border last:border-0">
-      <div>
+      <div className="min-w-0 break-words">
         <div className="text-sm font-medium">{label}</div>
         <div className="text-xs text-ui-secondary">{hint}</div>
         {extra}
@@ -1020,13 +1023,13 @@ export default function SettingsPage() {
   const { t } = useT();
   const settings = useSettings();
   const s = settings.data;
-  if (!s) return settings.error ? <p className="text-ui-error">{String(settings.error)}</p> : <Spinner />;
+  if (!s) return settings.error ? <p className="text-ui-error">{String(settings.error)}</p> : <Loader fill />;
   return (
     <>
       <PageHeader title={t("nav.settings")} subtitle={t("settings.subtitle", { path: s.dataHome })} />
       <div className="flex flex-wrap gap-2 mb-5">
         {SECTIONS.map(([id, label]) => (
-          <a key={id} href={`#${id}`} className="text-xs no-underline px-3 py-1 rounded-full border border-ui-border bg-white text-ui-body hover:border-ui-brand hover:text-ui-brand">
+          <a key={id} href={`#${id}`} className="text-xs no-underline px-3 py-1 rounded-md border border-ui-border bg-ui-raised transition-colors text-ui-body hover:border-ui-brand hover:text-ui-brand">
             {label.includes(".") ? t(label as Parameters<typeof t>[0]) : label}
           </a>
         ))}

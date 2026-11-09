@@ -1,5 +1,5 @@
-import { Button, Tag } from "@/components/kit";
-import { CopyIcon, RefreshIcon, TrashIcon } from "@/components/icons";
+import { Button, Spinner, Tag } from "@/components/kit";
+import { CopyIcon, RefreshIcon, TrashIcon, WarningIcon } from "@/components/icons";
 import { useIsFetching, useQueryClient } from "@tanstack/react-query";
 import { type ReactNode, useEffect, useState } from "react";
 import ReactMarkdown from "react-markdown";
@@ -12,7 +12,7 @@ export function PageHeader({ title, subtitle, actions }: { title: string; subtit
   return (
     <div className="flex flex-wrap items-end justify-between gap-3 mb-5">
       <div>
-        <h1 className="text-xl font-semibold text-ui-heading-strong">{title}</h1>
+        <h1 className="text-xl font-semibold tracking-tight text-ui-heading-strong">{title}</h1>
         {subtitle && <div className="text-sm text-ui-secondary mt-1">{subtitle}</div>}
       </div>
       {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
@@ -34,15 +34,32 @@ export function Card({
   id?: string;
 }) {
   return (
-    <section id={id} className={`bg-white border border-ui-border rounded-lg scroll-mt-20 ${className}`}>
+    <section id={id} className={`glass border rounded-lg scroll-mt-20 ${className}`}>
       {(title || actions) && (
         <header className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 border-b border-ui-border">
-          <h2 className="text-[15px] font-semibold text-ui-heading">{title}</h2>
+          <h2 className="text-title font-semibold text-ui-heading">{title}</h2>
           {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
         </header>
       )}
       <div className="p-4">{children}</div>
     </section>
+  );
+}
+
+/** Block loading state, centred in its container (fill: centred in the viewport area, for whole-page loads). */
+export function Loader({ label, fill = false }: { label?: string; fill?: boolean }) {
+  const { t } = useT();
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      className={`flex flex-col items-center justify-center gap-3 text-sm text-ui-secondary ${fill ? "min-h-[50vh]" : "py-12"}`}
+    >
+      <span className="glass grid h-14 w-14 place-items-center rounded-full border">
+        <Spinner size="lg" decorative />
+      </span>
+      <span>{label ?? t("common.loading")}</span>
+    </div>
   );
 }
 
@@ -53,7 +70,7 @@ export function Empty({ children }: { children: ReactNode }) {
 export function Field({ label, hint, children }: { label: string; hint?: ReactNode; children: ReactNode }) {
   return (
     <label className="block">
-      <span className="block text-[13px] font-medium text-ui-body mb-1">{label}</span>
+      <span className="block text-label font-medium text-ui-body mb-1">{label}</span>
       {children}
       {hint && <span className="block text-xs text-ui-secondary mt-1">{hint}</span>}
     </label>
@@ -156,9 +173,9 @@ export function JobProgress({ job, showItems = false }: { job: JobState | undefi
           {job.progress.done}/{job.progress.total} · {secs}s
         </span>
       </div>
-      <div className="h-1.5 rounded-full bg-ui-border overflow-hidden">
+      <div className="h-1.5 rounded-full bg-ui-secondary-surface overflow-hidden">
         <div
-          className={`h-full rounded-full transition-all ${job.status === "error" ? "bg-ui-error" : "bg-ui-brand"} ${job.status === "running" && pct === 0 ? "animate-pulse" : ""}`}
+          className={`h-full rounded-full transition-[width] ${job.status === "error" ? "bg-ui-error" : "bg-ui-brand bg-brand-gradient"} ${job.status === "running" && pct === 0 ? "animate-pulse" : ""}`}
           style={{ width: `${job.status === "done" ? 100 : job.status === "running" && pct === 0 ? 15 : pct}%` }}
         />
       </div>
@@ -235,9 +252,9 @@ export function Counter({ value, max, unit = "chars" }: { value: string; max: nu
 
 export function Kpi({ label, value, hint }: { label: string; value: ReactNode; hint?: ReactNode }) {
   return (
-    <div className="bg-white border border-ui-border rounded-lg px-4 py-3">
+    <div className="glass border rounded-lg px-4 py-3">
       <div className="text-xs text-ui-secondary">{label}</div>
-      <div className="text-2xl font-semibold text-ui-primary mt-1">{value}</div>
+      <div className="font-display text-2xl font-semibold tracking-tight tabular-nums text-ui-heading-strong mt-1">{value}</div>
       {hint && <div className="text-xs text-ui-secondary mt-0.5">{hint}</div>}
     </div>
   );
@@ -256,7 +273,7 @@ export function StaleBanner({ stale, onRerun, busy }: { stale: Staleness | null 
       }`}
     >
       <span>
-        <span aria-hidden>⚠ </span>
+        <WarningIcon size={14} className="inline -mt-0.5 mr-1.5" />
         {t(`stale.${stale.reason}` as MessageKey)}
       </span>
       {onRerun && (
@@ -274,7 +291,8 @@ export function StaleTag({ stale }: { stale: Staleness | null | undefined }) {
   return (
     <span title={t("stale.tagHint")}>
       <Tag size="sm" color="orange" variant="light">
-        ⚠ {t("stale.tag")}
+        <WarningIcon size={12} />
+        {t("stale.tag")}
       </Tag>
     </span>
   );

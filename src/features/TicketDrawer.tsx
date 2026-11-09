@@ -3,7 +3,6 @@ import {
   Drawer,
   DrawerBody,
   DrawerHeader,
-  Spinner,
   TabHeader,
   TabList,
   TabListItem,
@@ -15,7 +14,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { diffWords } from "diff";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { CopyButton, Empty, JobProgress, Md, SeverityTag, StaleBanner, StatusTag } from "@/components/ui";
+import { CopyButton, Empty, JobProgress, Loader, Md, SeverityTag, StaleBanner, StatusTag } from "@/components/ui";
 import { download, http, vscodeLink } from "@/lib/client";
 import { toast } from "@/lib/toast";
 import { type TicketJobKind, startTracked, useTrackedFor } from "@/lib/jobTracker";
@@ -173,13 +172,13 @@ function Refs({ refs, review }: { refs: CodeRef[]; review: StoredReview }) {
           <a
             key={i}
             href={vscodeLink(`${base}/${r.path}`, r.line)}
-            className="text-[11px] font-mono no-underline bg-ui-secondary-surface text-ui-heading-strong px-1.5 py-0.5 rounded hover:underline"
+            className="text-2xs font-mono no-underline bg-ui-secondary-surface text-ui-heading-strong px-1.5 py-0.5 rounded hover:underline"
             title="Open in VS Code"
           >
             {label}
           </a>
         ) : (
-          <span key={i} className="text-[11px] font-mono bg-ui-surface px-1.5 py-0.5 rounded">{label}</span>
+          <span key={i} className="text-2xs font-mono bg-ui-surface px-1.5 py-0.5 rounded">{label}</span>
         );
       })}
     </div>
@@ -368,7 +367,7 @@ function SpecTab({ data }: { data: TicketPayload }) {
           {raw ? (
             <pre className="text-xs whitespace-pre-wrap font-mono bg-ui-surface rounded-md p-3 max-h-[60vh] overflow-auto">{s.markdown}</pre>
           ) : (
-            <div className="border border-ui-border rounded-md p-4 bg-white">
+            <div className="border border-ui-border rounded-md p-4 bg-ui-raised">
               <Md>{s.markdown}</Md>
             </div>
           )}
@@ -529,8 +528,8 @@ function TestsTab({ data }: { data: TicketPayload }) {
                     type="button"
                     aria-pressed={filter === k}
                     onClick={() => setFilter(k)}
-                    className={`text-xs px-2 py-0.5 rounded-full border cursor-pointer ${
-                      filter === k ? "bg-ui-brand text-white border-ui-brand" : "bg-white text-ui-body border-ui-border hover:border-ui-brand"
+                    className={`text-xs px-2 py-0.5 rounded-md border transition-colors cursor-pointer ${
+                      filter === k ? "bg-ui-brand text-ui-on-solid border-ui-brand" : "bg-ui-raised text-ui-body border-ui-border hover:border-ui-brand"
                     }`}
                   >
                     {k === "all" ? t("tests.all") : t(`tests.type.${k}` as MessageKey)} (
@@ -564,7 +563,7 @@ function Diff({ before, after }: { before: string; after: string }) {
   const { t } = useT();
   if (before === after) return <p className="text-sm text-ui-secondary">{t("changes.same")}</p>;
   return (
-    <div className="text-sm whitespace-pre-wrap leading-relaxed border border-ui-border rounded-md p-3 bg-white">
+    <div className="text-sm whitespace-pre-wrap leading-relaxed border border-ui-border rounded-md p-3 bg-ui-raised">
       {diffWords(before, after).map((p, i) =>
         p.added ? (
           <ins key={i} className="bg-ui-success-surface text-ui-primary no-underline">{p.value}</ins>
@@ -652,7 +651,7 @@ export default function TicketDrawer({ ticketKey, onClose }: { ticketKey: string
         )}
       </DrawerHeader>
       <DrawerBody className="flex flex-col min-h-0">
-        {q.isLoading && <Spinner />}
+        {q.isLoading && <Loader fill />}
         {q.error && <p className="text-sm text-ui-error">{(q.error as Error).message}</p>}
         {q.data && (
           <>

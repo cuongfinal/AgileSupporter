@@ -3,7 +3,7 @@ import { ChevronDownIcon, ChevronRightIcon, DownloadIcon, SearchIcon } from "@/c
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/router";
 import { useMemo, useState } from "react";
-import { Card, Empty, JobProgress, PageHeader, ReloadButton, ReviewCounts, StaleTag, StatusTag } from "@/components/ui";
+import { Card, Empty, JobProgress, Loader, PageHeader, ReloadButton, ReviewCounts, StaleTag, StatusTag } from "@/components/ui";
 import RepoBadges from "@/features/RepoBadges";
 import SprintPicker, { SprintQuickSwitch } from "@/features/SprintPicker";
 import TicketDrawer from "@/features/TicketDrawer";
@@ -304,7 +304,7 @@ function SprintBody({ sprintId }: { sprintId: number | null }) {
       </Card>
 
       <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Button size="sm" variant="ghost" onClick={() => setExpanded(new Set(children.keys()))}>
             {t("sprint.expandAll")}
           </Button>
@@ -313,7 +313,7 @@ function SprintBody({ sprintId }: { sprintId: number | null }) {
           </Button>
           {selected.size > 0 && <span className="text-sm text-ui-secondary">{t("sprint.selected", { n: selected.size })}</span>}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Button size="sm" variant="ghost" leftIcon={<DownloadIcon />} disabled={!visibleKeys.length} onClick={checklist}>
             {t("review.downloadChecklist")}
           </Button>
@@ -339,7 +339,7 @@ function SprintBody({ sprintId }: { sprintId: number | null }) {
         </Card>
       )}
 
-      <div className="bg-white border border-ui-border rounded-lg overflow-hidden" role="table">
+      <div className="glass border rounded-lg overflow-hidden" role="table">
         <div role="row" className="grid grid-cols-[28px_24px_minmax(0,1fr)_150px_150px_48px] gap-2 px-3 py-2 bg-ui-surface text-xs font-semibold text-ui-subtle border-b border-ui-border">
           <span>
             <Checkbox
@@ -357,9 +357,7 @@ function SprintBody({ sprintId }: { sprintId: number | null }) {
           <span className="text-right">{t("sprint.pts")}</span>
         </div>
         {tickets.isLoading && (
-          <div className="p-6 grid place-items-center">
-            <Spinner />
-          </div>
+          <Loader />
         )}
         {tickets.error && <p className="p-4 text-sm text-ui-error">{(tickets.error as Error).message}</p>}
         {!tickets.isLoading && !tickets.error && !visible.length && <Empty>{byJql && !filters.jql ? t("review.enterJql") : sprintId || byJql ? t("sprint.empty") : t("sprint.noSprint")}</Empty>}

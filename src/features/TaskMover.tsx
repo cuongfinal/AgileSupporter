@@ -1,9 +1,10 @@
+import { WarningIcon } from "@/components/icons";
 import { Button, Checkbox, Spinner } from "@/components/kit";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { Select } from "@/components/Select";
-import { JobProgress, StatusTag } from "@/components/ui";
+import { JobProgress, Loader, StatusTag } from "@/components/ui";
 import { http } from "@/lib/client";
 import { useT } from "@/lib/i18n";
 import { trackJob, useLatestOfKind } from "@/lib/jobTracker";
@@ -105,7 +106,7 @@ function Body({ sprintId }: { sprintId: number }) {
     }
   };
 
-  if (q.isLoading) return <Spinner />;
+  if (q.isLoading) return <Loader />;
   if (q.error) return <p className="text-sm text-ui-error">{(q.error as Error).message}</p>;
   const d = q.data;
   if (!d) return null;
@@ -155,7 +156,8 @@ function Body({ sprintId }: { sprintId: number }) {
         </span>
         {!writeOn && (
           <span className="rounded bg-ui-warning-surface px-2 py-1 text-ui-warning-dark">
-            ⚠ {t("myDone.writeOff")} <Link href="/settings#features">{t("myDone.openSettings")}</Link>
+            <WarningIcon size={14} className="inline -mt-0.5 mr-1.5" />
+            {t("myDone.writeOff")} <Link href="/settings#features">{t("myDone.openSettings")}</Link>
           </span>
         )}
       </div>
@@ -232,7 +234,7 @@ function Body({ sprintId }: { sprintId: number }) {
                         onValueChange={(v) => v[0] && pickTarget(x, v[0])}
                       />
                       {d.fields && target(x) === "Done" && !noop(x) && (
-                        <div className="text-[11px] text-ui-secondary mt-1">{t("myDone.scoreHint", { score: scoreOf(x.key) })}</div>
+                        <div className="text-2xs text-ui-secondary mt-1">{t("myDone.scoreHint", { score: scoreOf(x.key) })}</div>
                       )}
                     </td>
                   </tr>
@@ -285,7 +287,7 @@ function Body({ sprintId }: { sprintId: number }) {
 /** Moves sprint sub-tasks (mine by default, or any member's) to Done or any reachable status, filling or clearing the AI fields. */
 export default function TaskMover({ sprintId }: { sprintId: number }) {
   return (
-    <section className="bg-white border border-ui-border rounded-lg p-4">
+    <section className="glass border rounded-lg p-4">
       <Body key={sprintId} sprintId={sprintId} />
     </section>
   );

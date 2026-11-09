@@ -107,11 +107,11 @@ export function Select({
     selected.length ? (
       <span className="flex min-w-0 items-center gap-1 overflow-hidden">
         {selected.slice(0, limitTags).map((s) => (
-          <span key={s.value} className="truncate rounded bg-ui-brand-surface px-1.5 py-0.5 text-[11px] font-medium text-ui-brand max-w-[140px]">
+          <span key={s.value} className="truncate rounded bg-ui-brand-surface px-1.5 py-0.5 text-2xs font-medium text-ui-brand max-w-[140px]">
             {s.label}
           </span>
         ))}
-        {selected.length > limitTags && <span className="text-[11px] text-ui-secondary">+{selected.length - limitTags}</span>}
+        {selected.length > limitTags && <span className="text-2xs text-ui-secondary">+{selected.length - limitTags}</span>}
       </span>
     ) : null
   ) : selected[0] ? (
@@ -132,11 +132,11 @@ export function Select({
         onClick={() => (open ? setOpen(false) : show())}
         onKeyDown={onKey}
         className={cx(
-          "group flex w-full items-center gap-1.5 rounded-md border bg-white text-left transition-colors cursor-pointer",
-          "focus:outline-none focus-visible:ring-2 focus-visible:ring-ui-brand/15",
+          "group flex w-full items-center gap-1.5 rounded-md border bg-ui-raised text-left transition-colors cursor-pointer",
+          "focus:outline-none focus-visible:border-ui-focus focus-visible:ring-1 focus-visible:ring-ui-focus",
           open ? "border-ui-brand" : "border-ui-outline hover:border-ui-muted",
           "disabled:bg-ui-surface disabled:text-ui-disabled disabled:cursor-not-allowed",
-          sm ? "h-8 px-2.5 text-[13px]" : "h-9 px-3 text-sm",
+          sm ? "h-8 px-2.5 text-label" : "h-9 px-3 text-sm",
           className,
         )}
       >
@@ -163,7 +163,7 @@ export function Select({
           <div
             ref={floating}
             style={style}
-            className="z-[60] max-w-[min(480px,calc(100vw-16px))] overflow-hidden rounded-md border border-ui-border bg-white shadow-lg"
+            className="z-[60] max-w-[min(480px,calc(100vw-16px))] overflow-hidden rounded-md border glass-float"
             onKeyDown={onKey}
           >
             {searchable && (
@@ -177,7 +177,7 @@ export function Select({
                     setActive(0);
                   }}
                   placeholder="Search…"
-                  className="h-8 w-full border-0 bg-transparent text-[13px] outline-none"
+                  className="h-8 w-full border-0 bg-transparent text-label outline-none"
                 />
               </div>
             )}
@@ -194,7 +194,7 @@ export function Select({
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => choose(item)}
                     className={cx(
-                      "flex items-start gap-2 rounded px-2 py-1.5 text-[13px]",
+                      "flex items-start gap-2 rounded px-2 py-1.5 text-label",
                       item.disabled ? "cursor-not-allowed text-ui-disabled" : "cursor-pointer",
                       i === active && !item.disabled && "bg-ui-surface",
                       on && "text-ui-brand font-medium",
@@ -204,7 +204,7 @@ export function Select({
                       <span
                         className={cx(
                           "mt-0.5 grid h-3.5 w-3.5 shrink-0 place-items-center rounded-[3px] border",
-                          on ? "border-ui-brand bg-ui-brand text-white" : "border-ui-outline bg-white",
+                          on ? "border-ui-brand bg-ui-brand text-ui-on-solid" : "border-ui-outline bg-ui-raised",
                         )}
                       >
                         {on && <CheckIcon size={10} strokeWidth={3} />}
@@ -214,7 +214,7 @@ export function Select({
                     )}
                     <span className="min-w-0">
                       <span className="block">{item.label}</span>
-                      {item.helperText && <span className="block text-[11px] font-normal text-ui-secondary">{item.helperText}</span>}
+                      {item.helperText && <span className="block text-2xs font-normal text-ui-secondary">{item.helperText}</span>}
                     </span>
                   </li>
                 );

@@ -168,7 +168,7 @@ function FlowDrawer({ story, file, onClose }: { story: DemoStory; file: FlowFile
                       </div>
                       <ul className="list-none p-0 m-0 mt-0.5 space-y-0.5">
                         {st.actions.map((a, ai) => (
-                          <li key={ai} className="text-[11px] font-mono text-ui-subtle">
+                          <li key={ai} className="text-2xs font-mono text-ui-subtle">
                             → {describe(a)}
                           </li>
                         ))}
@@ -250,7 +250,7 @@ function PlaceholderForm({ story, placeholders }: { story: DemoStory; placeholde
         {placeholders.map((p) => (
           <label key={p} className="block min-w-[200px] flex-1 max-w-[320px]">
             <span className="block text-xs text-ui-body mb-1">
-              {humanize(p)} <code className="text-[10px] text-ui-secondary">{p}</code>
+              {humanize(p)} <code className="text-2xs text-ui-secondary">{p}</code>
             </span>
             <Input size="sm" fullWidth value={values[p] ?? ""} placeholder={humanize(p)} onChange={(e) => setValues({ ...values, [p]: e.target.value })} />
             {suggestions.length > 0 && (
@@ -260,7 +260,7 @@ function PlaceholderForm({ story, placeholders }: { story: DemoStory; placeholde
                     key={sg}
                     type="button"
                     onClick={() => setValues({ ...values, [p]: sg })}
-                    className="text-[11px] font-mono px-1.5 py-0.5 rounded border border-ui-border bg-white cursor-pointer hover:border-ui-brand"
+                    className="text-2xs font-mono px-1.5 py-0.5 rounded border border-ui-border bg-ui-raised cursor-pointer hover:border-ui-brand"
                   >
                     {sg}
                   </button>
@@ -273,7 +273,7 @@ function PlaceholderForm({ story, placeholders }: { story: DemoStory; placeholde
           {t("rec.fill", { n: filled.length })}
         </Button>
       </div>
-      {!suggestions.length && <p className="text-[11px] text-ui-secondary mt-1.5 mb-0">{t("rec.fillHint")}</p>}
+      {!suggestions.length && <p className="text-2xs text-ui-secondary mt-1.5 mb-0">{t("rec.fillHint")}</p>}
     </form>
   );
 }

@@ -80,13 +80,15 @@ function Portal({ children }: { children: ReactNode }) {
 
 // ---------------------------------------------------------------- spinner
 
-export function Spinner({ size = "md", className }: { size?: Size | "lg"; className?: string }) {
-  const px = size === "sm" ? "w-4 h-4 border-2" : size === "lg" ? "w-8 h-8 border-[3px]" : "w-6 h-6 border-2";
+/** Inline spinner (buttons, rows, selects). For a block / page loading state use <Loader> from components/ui. */
+export function Spinner({ size = "md", className, decorative }: { size?: Size | "lg"; className?: string; decorative?: boolean }) {
+  const px = size === "sm" ? "w-4 h-4" : size === "lg" ? "w-9 h-9" : "w-6 h-6";
   return (
     <span
-      role="status"
-      aria-label="Loading"
-      className={cx("inline-block shrink-0 rounded-full border-ui-brand border-t-transparent animate-spin align-middle", px, className)}
+      role={decorative ? undefined : "status"}
+      aria-label={decorative ? undefined : "Loading"}
+      aria-hidden={decorative || undefined}
+      className={cx("inline-block shrink-0 rounded-full text-ui-brand spinner-ring animate-spin align-middle", px, className)}
     />
   );
 }
@@ -98,16 +100,16 @@ type ButtonVariant = "solid" | "outline" | "ghost";
 
 const BUTTON: Record<ButtonVariant, Record<ButtonColor, string>> = {
   solid: {
-    primary: "bg-ui-brand text-white hover:bg-ui-brand-hover",
-    neutral: "bg-ui-subtle text-white hover:bg-ui-body",
-    danger: "bg-ui-error text-white hover:bg-ui-error-dark",
-    secondary: "bg-ui-heading text-white hover:bg-ui-heading-strong",
+    primary: "bg-ui-brand bg-brand-gradient text-ui-on-solid shadow-sm hover:bg-none hover:bg-ui-brand-hover",
+    neutral: "bg-ui-subtle text-ui-on-solid hover:bg-ui-body",
+    danger: "bg-ui-error text-ui-on-solid hover:bg-ui-error-dark",
+    secondary: "bg-ui-heading text-ui-on-solid hover:bg-ui-heading-strong",
   },
   outline: {
-    primary: "border border-ui-brand text-ui-brand bg-white hover:bg-ui-brand-surface",
-    neutral: "border border-ui-outline text-ui-body bg-white hover:bg-ui-surface",
-    danger: "border border-ui-error text-ui-error bg-white hover:bg-ui-error-surface",
-    secondary: "border border-ui-heading text-ui-heading bg-white hover:bg-ui-secondary-surface",
+    primary: "border border-ui-brand text-ui-brand bg-ui-raised hover:bg-ui-brand-surface",
+    neutral: "border border-ui-outline text-ui-body bg-ui-raised hover:bg-ui-float hover:border-ui-muted",
+    danger: "border border-ui-error text-ui-error bg-ui-raised hover:bg-ui-error-surface",
+    secondary: "border border-ui-heading text-ui-heading bg-ui-raised hover:bg-ui-secondary-surface",
   },
   ghost: {
     primary: "text-ui-brand hover:bg-ui-brand-surface",
@@ -132,15 +134,15 @@ export function Button(props: ButtonProps | LinkButtonProps) {
   const { size = "md", variant = "solid", color = "primary", leftIcon, loading, fullWidth, className, children, ...rest } = props;
   const cls = cx(
     "inline-flex items-center justify-center gap-1.5 rounded-md font-medium whitespace-nowrap no-underline transition-colors cursor-pointer select-none",
-    "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ui-brand",
+    "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ui-focus",
     "disabled:opacity-50 disabled:cursor-not-allowed aria-disabled:opacity-50 aria-disabled:pointer-events-none",
     "[&_svg]:shrink-0",
-    size === "sm" ? "h-8 px-2.5 text-[13px]" : "h-9 px-4 text-sm",
+    size === "sm" ? "h-8 px-2.5 text-label" : "h-9 px-4 text-sm",
     BUTTON[variant][color],
     fullWidth && "w-full",
     className,
   );
-  const icon = loading ? <Spinner size="sm" className={variant === "solid" ? "!border-white !border-t-transparent" : ""} /> : leftIcon;
+  const icon = loading ? <Spinner size="sm" className={variant === "solid" ? "!text-ui-on-solid" : ""} /> : leftIcon;
   if (rest.component === "a") {
     const { component: _c, disabled, ...a } = rest;
     void _c;
@@ -177,14 +179,14 @@ const TAG: Record<"light" | "bold" | "outline", Record<TagColor, string>> = {
     purple: "bg-ui-purple-surface text-ui-purple",
   },
   bold: {
-    neutral: "bg-ui-subtle text-white",
-    blue: "bg-ui-info text-white",
-    green: "bg-ui-success text-white",
-    orange: "bg-ui-warning text-white",
-    red: "bg-ui-error text-white",
-    primary: "bg-ui-brand text-white",
-    secondary: "bg-ui-heading text-white",
-    purple: "bg-ui-purple text-white",
+    neutral: "bg-ui-subtle text-ui-on-solid",
+    blue: "bg-ui-info text-ui-on-solid",
+    green: "bg-ui-success text-ui-on-solid",
+    orange: "bg-ui-warning text-ui-on-solid",
+    red: "bg-ui-error text-ui-on-solid",
+    primary: "bg-ui-brand text-ui-on-solid",
+    secondary: "bg-ui-heading text-ui-on-solid",
+    purple: "bg-ui-purple text-ui-on-solid",
   },
   outline: {
     neutral: "border border-ui-outline text-ui-subtle",
@@ -215,7 +217,7 @@ export function Tag({
     <span
       className={cx(
         "inline-flex items-center gap-1 rounded font-medium whitespace-nowrap leading-none",
-        size === "sm" ? "h-5 px-1.5 text-[11px]" : "h-6 px-2 text-xs",
+        size === "sm" ? "h-5 px-1.5 text-2xs" : "h-6 px-2 text-xs",
         TAG[variant][color],
         className,
       )}
@@ -260,8 +262,8 @@ export function Checkbox({ size = "md", indeterminate, children, className, ...r
 }
 
 const FIELD =
-  "rounded-md border border-ui-outline bg-white text-ui-primary placeholder:text-ui-muted transition-colors " +
-  "hover:border-ui-muted focus:border-ui-brand focus:outline-none focus:ring-2 focus:ring-ui-brand/15 " +
+  "rounded-md border border-ui-outline bg-ui-raised text-ui-primary placeholder:text-ui-muted transition-colors " +
+  "hover:border-ui-muted focus:border-ui-focus focus:outline-none focus:ring-1 focus:ring-ui-focus " +
   "disabled:bg-ui-surface disabled:text-ui-disabled disabled:cursor-not-allowed";
 
 type InputProps = Omit<InputHTMLAttributes<HTMLInputElement>, "size"> & { size?: Size; fullWidth?: boolean; leftContent?: ReactNode };
@@ -274,7 +276,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
     <input
       ref={ref}
       {...rest}
-      className={cx(FIELD, size === "sm" ? "h-8 px-2.5 text-[13px]" : "h-9 px-3 text-sm", !!leftContent && "pl-8", fullWidth && "w-full", className)}
+      className={cx(FIELD, size === "sm" ? "h-8 px-2.5 text-label" : "h-9 px-3 text-sm", !!leftContent && "pl-8", fullWidth && "w-full", className)}
     />
   );
   if (!leftContent) return input;
@@ -297,7 +299,7 @@ export function Textarea({
     <textarea
       rows={minRows}
       {...rest}
-      className={cx(FIELD, "block resize-y py-2 leading-relaxed", size === "sm" ? "px-2.5 text-[13px]" : "px-3 text-sm", fullWidth && "w-full", className)}
+      className={cx(FIELD, "block resize-y py-2 leading-relaxed", size === "sm" ? "px-2.5 text-label" : "px-3 text-sm", fullWidth && "w-full", className)}
     />
   );
 }
@@ -313,13 +315,13 @@ export function Toggle({
       <input type="checkbox" role="switch" {...rest} className="peer sr-only" />
       <span
         className={cx(
-          "rounded-full bg-ui-outline transition-colors peer-checked:bg-ui-brand peer-focus-visible:ring-2 peer-focus-visible:ring-ui-brand/30",
+          "rounded-full bg-ui-outline transition-colors peer-checked:bg-ui-brand peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-ui-focus",
           sm ? "w-8 h-[18px]" : "w-10 h-[22px]",
         )}
       />
       <span
         className={cx(
-          "absolute rounded-full bg-white shadow transition-transform",
+          "absolute rounded-full bg-ui-raised shadow transition-transform",
           sm ? "left-[3px] w-3 h-3 peer-checked:translate-x-[14px]" : "left-[3px] w-4 h-4 peer-checked:translate-x-[18px]",
         )}
       />
@@ -337,18 +339,21 @@ export function Segmented({
   selectedIndex,
   onChange,
   size = "md",
+  fullWidth,
   children,
   ...aria
 }: {
   selectedIndex: number;
   onChange: (i: number) => void;
   size?: Size;
+  /** Stretch to the container; items share the width equally. */
+  fullWidth?: boolean;
   children: ReactNode;
   "aria-label"?: string;
 }) {
   const items = Children.toArray(children).filter(isValidElement);
   return (
-    <div role="radiogroup" aria-label={aria["aria-label"]} className="inline-flex rounded-md border border-ui-outline bg-white p-0.5 gap-0.5">
+    <div role="radiogroup" aria-label={aria["aria-label"]} className={cx("rounded-md border border-ui-border bg-ui-surface p-0.5 gap-0.5", fullWidth ? "flex w-full" : "inline-flex")}>
       {items.map((item, i) => (
         <button
           key={i}
@@ -357,9 +362,10 @@ export function Segmented({
           aria-checked={i === selectedIndex}
           onClick={() => i !== selectedIndex && onChange(i)}
           className={cx(
-            "rounded font-medium whitespace-nowrap transition-colors cursor-pointer",
-            size === "sm" ? "h-7 px-2.5 text-xs" : "h-8 px-3 text-sm",
-            i === selectedIndex ? "bg-ui-brand-surface text-ui-brand font-semibold" : "text-ui-subtle hover:bg-ui-surface",
+            "inline-flex items-center justify-center rounded font-medium whitespace-nowrap transition-colors cursor-pointer [&_svg]:shrink-0",
+            // fullWidth: equal tiles, icon stacked over the label so short widths never truncate
+            fullWidth ? "flex-1 min-w-0 flex-col gap-0.5 px-1 py-1.5 text-xs" : cx("gap-1.5", size === "sm" ? "h-7 px-2.5 text-xs" : "h-8 px-3 text-sm"),
+            i === selectedIndex ? "bg-ui-float text-ui-brand font-semibold shadow-sm" : "text-ui-subtle hover:bg-ui-raised hover:text-ui-body",
           )}
         >
           {(item as ReactElement<{ children: ReactNode }>).props.children}
@@ -414,8 +420,8 @@ export function TabListItem({ index = 0, children }: { index?: number; children:
       aria-selected={on}
       onClick={() => onChange(index)}
       className={cx(
-        "px-3 py-2 text-sm whitespace-nowrap border-b-2 transition-colors cursor-pointer",
-        on ? "border-ui-brand text-ui-brand font-semibold" : "border-transparent text-ui-subtle hover:text-ui-body",
+        "px-3 py-2 text-sm whitespace-nowrap border-b-2 transition-colors cursor-pointer focus-visible:-outline-offset-2",
+        on ? "border-ui-brand text-ui-brand font-semibold" : "border-transparent text-ui-subtle hover:text-ui-body hover:border-ui-border",
       )}
     >
       {children}
@@ -454,8 +460,8 @@ export function Drawer({
   return (
     <Portal>
       <DrawerCtx.Provider value={() => onOpenChange(false)}>
-        <div className="fixed inset-0 z-40 bg-ui-primary/30" onClick={() => onOpenChange(false)} aria-hidden />
-        <aside role="dialog" aria-modal className={cx("fixed right-0 top-0 z-50 h-full w-[560px] max-w-full bg-white shadow-2xl flex flex-col", className)}>
+        <div className="fixed inset-0 z-40 bg-ui-overlay backdrop-blur-[2px]" onClick={() => onOpenChange(false)} aria-hidden />
+        <aside role="dialog" aria-modal className={cx("fixed right-0 top-0 z-50 h-full w-[560px] max-w-full glass-float border-l flex flex-col", className)}>
           {children}
         </aside>
       </DrawerCtx.Provider>
@@ -472,7 +478,7 @@ export function DrawerHeader({ children }: { children: ReactNode }) {
         type="button"
         onClick={close}
         aria-label="Close"
-        className="shrink-0 rounded-md p-1.5 text-ui-subtle hover:bg-ui-surface cursor-pointer"
+        className="shrink-0 rounded-md p-1.5 text-ui-subtle transition-colors hover:bg-ui-surface hover:text-ui-primary cursor-pointer"
       >
         <CloseIcon size={18} />
       </button>
@@ -525,7 +531,7 @@ export function TooltipContent({ children }: { children: ReactNode }) {
         ref={floating}
         role="tooltip"
         style={{ ...style, minWidth: undefined }}
-        className="z-[70] max-w-[360px] rounded-md bg-ui-primary px-2.5 py-1.5 text-xs text-white shadow-lg pointer-events-none"
+        className="z-[70] max-w-[360px] rounded-md bg-ui-primary px-2.5 py-1.5 text-xs text-ui-on-solid shadow-lg pointer-events-none"
       >
         {children}
       </div>

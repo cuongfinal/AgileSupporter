@@ -1,6 +1,6 @@
-import { Spinner, Tag } from "@/components/kit";
+import { Tag } from "@/components/kit";
 import { useQuery } from "@tanstack/react-query";
-import { Card, Empty, Kpi, PageHeader } from "@/components/ui";
+import { Card, Empty, Kpi, Loader, PageHeader } from "@/components/ui";
 import { http } from "@/lib/client";
 import { useT } from "@/lib/i18n";
 import type { UsageEntry } from "@/lib/types";
@@ -22,7 +22,7 @@ export default function UsagePage() {
   return (
     <>
       <PageHeader title={t("nav.usage")} subtitle={t("usage.subtitle")} />
-      {q.isLoading && <Spinner />}
+      {q.isLoading && <Loader fill />}
       {d && totals && (
         <div className="space-y-4">
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">

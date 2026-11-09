@@ -82,10 +82,10 @@ function ActionRow({
   const setTarget = (patch: Partial<FlowTarget>) => onChange({ ...a, target: { ...(tgt ?? emptyTarget()), ...patch } });
   const valueLabel = t(`flow.value.${a.type}` as MessageKey);
   return (
-    <div className="rounded-md border border-ui-border bg-white p-2 space-y-2">
+    <div className="rounded-md border border-ui-border bg-ui-raised p-2 space-y-2">
       <div className="flex flex-wrap items-end gap-2">
         <div className="w-44">
-          <span className="block text-[11px] text-ui-secondary mb-0.5">{t("flow.action")}</span>
+          <span className="block text-2xs text-ui-secondary mb-0.5">{t("flow.action")}</span>
           <Select
             size="sm"
             items={ACTION_ORDER.map((k) => ({ value: k, label: t(`flow.type.${k}` as MessageKey), helperText: t(`flow.typeHint.${k}` as MessageKey) }))}
@@ -95,7 +95,7 @@ function ActionRow({
         </div>
         {spec.value !== "none" && (
           <div className="flex-1 min-w-[180px]">
-            <span className="block text-[11px] text-ui-secondary mb-0.5">
+            <span className="block text-2xs text-ui-secondary mb-0.5">
               {valueLabel}
               {spec.value === "optional" && ` (${t("flow.optional")})`}
             </span>
@@ -138,7 +138,7 @@ function ActionRow({
           {tgt && (
             <>
               <div className="w-36">
-                <span className="block text-[11px] text-ui-secondary mb-0.5">{t("flow.findBy")}</span>
+                <span className="block text-2xs text-ui-secondary mb-0.5">{t("flow.findBy")}</span>
                 <Select
                   size="sm"
                   items={BY_ORDER.map((b) => ({ value: b, label: t(`flow.by.${b}` as MessageKey) }))}
@@ -149,7 +149,7 @@ function ActionRow({
               {tgt.by === "role" ? (
                 <>
                   <div className="w-36">
-                    <span className="block text-[11px] text-ui-secondary mb-0.5">{t("flow.role")}</span>
+                    <span className="block text-2xs text-ui-secondary mb-0.5">{t("flow.role")}</span>
                     <Select
                       size="sm"
                       items={[...new Set([...ROLES, tgt.value])].filter(Boolean).map((r) => ({ value: r, label: r }))}
@@ -158,18 +158,18 @@ function ActionRow({
                     />
                   </div>
                   <div className="flex-1 min-w-[160px]">
-                    <span className="block text-[11px] text-ui-secondary mb-0.5">{t("flow.name")}</span>
+                    <span className="block text-2xs text-ui-secondary mb-0.5">{t("flow.name")}</span>
                     <Input size="sm" fullWidth placeholder={t("flow.nameHint")} value={tgt.name} onChange={(e) => setTarget({ name: e.target.value })} />
                   </div>
                 </>
               ) : (
                 <div className="flex-1 min-w-[200px]">
-                  <span className="block text-[11px] text-ui-secondary mb-0.5">{t(`flow.byValue.${tgt.by}` as MessageKey)}</span>
+                  <span className="block text-2xs text-ui-secondary mb-0.5">{t(`flow.byValue.${tgt.by}` as MessageKey)}</span>
                   <Input size="sm" fullWidth className={tgt.by === "css" ? "font-mono" : ""} value={tgt.value} onChange={(e) => setTarget({ value: e.target.value })} />
                 </div>
               )}
               <div className="w-20" title={t("flow.nthHint")}>
-                <span className="block text-[11px] text-ui-secondary mb-0.5">{t("flow.nth")}</span>
+                <span className="block text-2xs text-ui-secondary mb-0.5">{t("flow.nth")}</span>
                 <Input
                   size="sm"
                   fullWidth
@@ -228,7 +228,7 @@ function StepEditor({
         </span>
       </div>
       <div>
-        <span className="block text-[11px] text-ui-secondary mb-0.5">{t("flow.narration")}</span>
+        <span className="block text-2xs text-ui-secondary mb-0.5">{t("flow.narration")}</span>
         <Textarea size="sm" fullWidth minRows={2} value={st.narration} onChange={(e) => onChange({ ...st, narration: e.target.value })} />
       </div>
       <div className="space-y-1.5">
@@ -260,7 +260,7 @@ export default function FlowEditor({ flow, onChange }: { flow: DemoFlow; onChang
     <div className="space-y-4">
       {flow.scenarios.map((sc, si) => (
         <section key={si} className="border border-ui-border rounded-md">
-          <header className="flex items-center gap-2 px-3 py-2 bg-white border-b border-ui-border rounded-t-md">
+          <header className="flex items-center gap-2 px-3 py-2 bg-ui-raised border-b border-ui-border rounded-t-md">
             <span className="text-sm font-semibold text-ui-heading">{si + 1}.</span>
             <Input size="sm" fullWidth value={sc.name} onChange={(e) => setScenario(si, { name: e.target.value })} aria-label={t("flow.scenarioName")} />
             <span className="flex">
