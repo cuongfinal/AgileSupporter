@@ -56,6 +56,12 @@ touches the glance slide and story slides. Sprint Data, Sprint Goal, Feedback an
 slides belong to other presenters, so leave them alone. Only change the cover if the user
 asks (`cover` key below).
 
+The opening slides (everything before the glance slide: cover, agenda, Sprint Data, Sprint
+Goal …) can be updated when the user asks, e.g. new sprint data screenshots or goal text.
+`python scripts/sprint_deck.py intro "<deck.pptx>" <preview-dir>` prints JSON listing each
+opening slide's editable text boxes and screenshot slots by shape id (and saves the slot
+pictures to `<preview-dir>` for reference); pass edits back through the `intro` key below.
+
 ## 3. Write the slide content
 
 Write a `content.json` in the scratchpad (shape: `assets/content.example.json`). One entry
@@ -76,6 +82,7 @@ plain language for a business audience rather than developer wording:
 | `demo_notes` / `purpose_notes` | optional speaker notes | Put the test B/L link(s) in `demo_notes`. |
 | `glance_title` (top level) | e.g. `Sprint 22–23 at a glance` | Take the sprint number from the deck file name. |
 | `cover` (top level, optional) | `{"title": "...", "dates": "..."}` | Only when the user asks. |
+| `intro` (top level, optional) | `[{"slide": 4, "texts": {"413": "Sprint 25 Data"}, "images": {"427": "/abs/shot.png"}}]` | Opening-slide edits; `slide` counts the opening slides from 1, ids come from `intro`. Text keeps each paragraph's formatting (one line per paragraph); images (PNG/JPEG) are fitted inside the old picture's frame. Only when the user asks. |
 
 Bug and NFR tickets go in the deck too if the user listed them. Frame them the same way:
 what the agent couldn't do before, and what they can do now.

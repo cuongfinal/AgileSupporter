@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Card, ConfirmDelete, Counter, Empty, Field, JobProgress, Loader, PageHeader, ReloadButton, StatusTag } from "@/components/ui";
 import DemoRecorder, { useRecOptions } from "@/features/DemoRecorder";
+import IntroSlides from "@/features/IntroSlides";
 import SprintPicker from "@/features/SprintPicker";
 import { http } from "@/lib/client";
 import { trackJob, useLatestOfKind } from "@/lib/jobTracker";
@@ -320,7 +321,7 @@ export default function DemoPage() {
         actions={
           <>
             <SprintPicker />
-            <ReloadButton keys={["sprints", "sprint", "draft", "templates", "python", "builds"]} />
+            <ReloadButton keys={["sprints", "sprint", "draft", "templates", "python", "builds", "demo-intro"]} />
           </>
         }
       />
@@ -351,6 +352,8 @@ export default function DemoPage() {
           <p className="text-xs text-ui-secondary mt-2">{t("demo.glanceHint")}</p>
         </Card>
       </div>
+
+      <IntroSlides draft={draft} update={update} templateId={active?.id} />
 
       <Card
         className="mb-4"

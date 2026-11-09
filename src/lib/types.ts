@@ -288,12 +288,40 @@ export interface DemoStory {
   testIds: string;
 }
 
+/** Edits to one opening slide (cover, agenda, sprint data, goal …), keyed by the template's shape ids. */
+export interface DemoIntroSlideEdit {
+  texts: Record<string, string>;
+  /** shape id → uploaded image file name (served by /api/demo/intro/file) */
+  images: Record<string, string>;
+}
+
+export interface DemoIntroEdits {
+  /** Shape ids only mean something for the template they were read from. */
+  templateId: string;
+  slides: Record<string, DemoIntroSlideEdit>;
+}
+
 export interface DemoDraft {
   sprintId: number | null;
   sprintName: string;
   glanceTitle: string;
   stories: DemoStory[];
+  intro?: DemoIntroEdits;
   updatedAt: string;
+}
+
+/** What the active template's opening slides hold, as read by `sprint_deck.py intro`. */
+export interface DemoIntroSlide {
+  n: number;
+  title: string;
+  texts: { id: number; text: string }[];
+  images: { id: number; width: number; height: number; preview: string }[];
+}
+
+export interface DemoIntroTemplate {
+  templateId: string | null;
+  slides: DemoIntroSlide[];
+  error?: string;
 }
 
 export interface TemplateInspect {

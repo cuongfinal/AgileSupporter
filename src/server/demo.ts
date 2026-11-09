@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import type { BuildMeta, DemoDraft, DemoStory, TemplateInspect, TemplateMeta, Ticket } from "@/lib/types";
+import type { BuildMeta, DemoDraft, DemoIntroTemplate, DemoStory, TemplateInspect, TemplateMeta, Ticket } from "@/lib/types";
 import { runAi } from "./ai";
 import { latestSummary } from "./analysis";
 import { HttpError } from "./api";
@@ -123,6 +123,7 @@ export async function reinspectTemplate(id: string): Promise<TemplateMeta> {
   const all = listTemplates().templates;
   const t = all.find((x) => x.id === id);
   if (!t) throw new HttpError(404, "Template not found");
+  removeFile(`templates/${safeName(id)}-intro`);
   t.inspect = await inspectFile(tplFile(id));
   writeJson(TPL_INDEX, all);
   return t;
@@ -143,12 +144,87 @@ async function reinspectFailed() {
 export function deleteTemplate(id: string) {
   writeJson(TPL_INDEX, listTemplates().templates.filter((x) => x.id !== id));
   removeFile(`templates/${safeName(id)}.pptx`);
+  removeFile(`templates/${safeName(id)}-intro`);
   if (getSettings().demo.activeTemplateId === id) updateSettings({ demo: { ...getSettings().demo, activeTemplateId: "" } });
 }
 
 export function activateTemplate(id: string) {
   if (!listTemplates().templates.some((x) => x.id === id)) throw new HttpError(404, "Template not found");
   updateSettings({ demo: { ...getSettings().demo, activeTemplateId: id } });
+}
+
+// ---------------------------------------------------------------- opening slides
+
+const introDir = (tplId: string) => dataPath("templates", `${safeName(tplId)}-intro`);
+const INTRO_UPLOADS = "demo/intro";
+const IMAGE_TYPES = { png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", gif: "image/gif", bmp: "image/bmp", tiff: "image/tiff" } as const;
+
+/** The active template's opening slides (text boxes + screenshot slots); read once per template and cached with its previews. */
+export async function templateIntro(): Promise<DemoIntroTemplate> {
+  const tplId = getSettings().demo.activeTemplateId;
+  if (!tplId || !listTemplates().templates.some((t) => t.id === tplId)) return { templateId: null, slides: [] };
+  const dir = introDir(tplId);
+  const cache = path.join(dir, "intro.json");
+  if (fs.existsSync(cache)) return { templateId: tplId, ...JSON.parse(fs.readFileSync(cache, "utf8")) };
+  ensureDir(dir);
+  const r = await deck(["intro", tplFile(tplId), dir]);
+  if (r.code !== 0) return { templateId: tplId, slides: [], error: (r.stderr || r.stdout).slice(-600) };
+  const parsed = JSON.parse(r.stdout) as Omit<DemoIntroTemplate, "templateId">;
+  fs.writeFileSync(cache, JSON.stringify(parsed));
+  return { templateId: tplId, ...parsed };
+}
+
+function imageExt(data: Buffer): keyof typeof IMAGE_TYPES | null {
+  if (data.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) return "png";
+  if (data[0] === 0xff && data[1] === 0xd8 && data[2] === 0xff) return "jpg";
+  return null;
+}
+
+/** Stores a screenshot for an opening-slide slot; PNG / JPEG only (what python-pptx embeds reliably). */
+export function saveIntroImage(data: Buffer): { name: string } {
+  const ext = imageExt(data);
+  if (!ext) throw new HttpError(400, "Only PNG or JPEG images are supported");
+  const name = `${newId()}.${ext}`;
+  ensureDir(dataPath(INTRO_UPLOADS));
+  fs.writeFileSync(dataPath(INTRO_UPLOADS, name), data);
+  return { name };
+}
+
+/** Resolves an uploaded image, or (with tplId) a template preview, to a path + content type. */
+export function introImageFile(name: string, tplId?: string): { file: string; type: string } {
+  const file = tplId ? path.join(introDir(tplId), safeName(name)) : dataPath(INTRO_UPLOADS, safeName(name));
+  if (!fs.existsSync(file)) throw new HttpError(404, "Image not found");
+  const ext = path.extname(file).slice(1).toLowerCase() as keyof typeof IMAGE_TYPES;
+  return { file, type: IMAGE_TYPES[ext] ?? "application/octet-stream" };
+}
+
+/** Drops uploaded images the draft no longer uses; recent ones are kept because their draft save may still be in flight. */
+function pruneIntroImages(d: DemoDraft) {
+  const dir = dataPath(INTRO_UPLOADS);
+  if (!fs.existsSync(dir)) return;
+  const used = new Set(Object.values(d.intro?.slides ?? {}).flatMap((s) => Object.values(s.images)));
+  const cutoff = Date.now() - 60 * 60 * 1000;
+  for (const f of fs.readdirSync(dir)) {
+    const full = path.join(dir, f);
+    if (!used.has(f) && fs.statSync(full).mtimeMs < cutoff) fs.rmSync(full, { force: true });
+  }
+}
+
+/** The `intro` block for content.json: only edits made for this template, with image names turned into paths. */
+function introContent(draft: DemoDraft, tplId: string) {
+  if (!draft.intro || draft.intro.templateId !== tplId) return undefined;
+  const out = Object.entries(draft.intro.slides)
+    .map(([n, s]) => ({
+      slide: Number(n),
+      texts: s.texts,
+      images: Object.fromEntries(
+        Object.entries(s.images)
+          .map(([id, name]) => [id, dataPath(INTRO_UPLOADS, safeName(name))])
+          .filter(([, file]) => fs.existsSync(file)),
+      ),
+    }))
+    .filter((s) => Object.keys(s.texts).length || Object.keys(s.images).length);
+  return out.length ? out : undefined;
 }
 
 // ---------------------------------------------------------------- draft
@@ -162,6 +238,7 @@ export function getDraft(): DemoDraft {
 export function saveDraft(d: DemoDraft): DemoDraft {
   const next = { ...d, updatedAt: new Date().toISOString() };
   writeJson(DRAFT, next);
+  pruneIntroImages(next);
   return next;
 }
 
@@ -225,6 +302,8 @@ export function startDraftJob(keys: string[], sprint: { id: number | null; name:
       sprintName: sprint.name,
       glanceTitle: sameSprint && cur.glanceTitle ? cur.glanceTitle : `${sprint.name} at a glance`,
       stories,
+      // Opening-slide edits (sprint data screenshots, goal text …) are hand-made: never drop them when stories are re-drafted.
+      intro: cur.intro,
       updatedAt: "",
     });
     return { failed };
@@ -324,6 +403,7 @@ export function startBuildJob(keys: string[] | null, opts: { screenshots?: boole
     const shots = Object.fromEntries(stories.map((s) => [s.key, withShots ? slideShots(s.key) : []]));
     const content = {
       glance_title: draft.glanceTitle,
+      intro: introContent(draft, tplId),
       stories: stories.map((s) => ({
         key: s.key,
         title: s.title,

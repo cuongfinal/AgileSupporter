@@ -14,11 +14,16 @@ const story = z.object({
   scenarios: z.array(z.object({ name: z.string(), steps: z.array(z.string()) })),
   testIds: z.string(),
 });
+const intro = z.object({
+  templateId: z.string(),
+  slides: z.record(z.string(), z.object({ texts: z.record(z.string(), z.string()), images: z.record(z.string(), z.string()) })),
+});
 const draft = z.object({
   sprintId: z.number().nullable(),
   sprintName: z.string(),
   glanceTitle: z.string(),
   stories: z.array(story),
+  intro: intro.optional(),
   updatedAt: z.string(),
 });
 

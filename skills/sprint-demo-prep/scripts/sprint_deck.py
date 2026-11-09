@@ -10,6 +10,7 @@ Usage:
     sprint_deck.py inspect <deck.pptx>
     sprint_deck.py build   <deck.pptx> <content.json> <out.pptx>
     sprint_deck.py strip   <deck.pptx> <out.pptx>      # only remove screenshots
+    sprint_deck.py intro   <deck.pptx> <preview-dir>   # JSON: editable text + screenshot slots of the opening slides
 
 Requires python-pptx (pip install python-pptx).
 """
@@ -309,6 +310,123 @@ def pick_templates(slides, kinds):
     return purpose, demo
 
 
+# ---------------------------------------------------------------- opening slides (cover, agenda, sprint data, goal …)
+
+STORY_KINDS = ("glance", "purpose", "demo", "story-other")
+
+
+def iter_shapes(shapes):
+    for sh in shapes:
+        yield sh
+        if sh.shape_type == MSO_SHAPE_TYPE.GROUP:
+            yield from iter_shapes(sh.shapes)
+
+
+def intro_slides(slides, kinds):
+    """The slides before the Demonstration section's first glance/story slide."""
+    end = next((i for i, k in enumerate(kinds) if k in STORY_KINDS), len(slides))
+    return slides[:end]
+
+
+def editable_texts(slide):
+    """Text shapes a presenter would update each sprint; skips footers, page numbers and empty placeholders."""
+    out = []
+    for sh in iter_shapes(slide.shapes):
+        if not sh.has_text_frame:
+            continue
+        t = sh.text_frame.text.strip()
+        if not t or t.isdigit() or "Copyright" in t:
+            continue
+        out.append(sh)
+    return sorted(out, key=lambda s: (s.top, s.left))
+
+
+def screenshot_slots(slide):
+    return sorted((sh for sh in slide.shapes if is_screenshot(sh)), key=lambda s: (s.top, s.left))
+
+
+def cmd_intro(path, outdir):
+    prs = Presentation(path)
+    slides, kinds = analyse(prs)
+    os.makedirs(outdir, exist_ok=True)
+    result = []
+    for n, slide in enumerate(intro_slides(slides, kinds), 1):
+        texts = [{"id": sh.shape_id, "text": sh.text_frame.text} for sh in editable_texts(slide)]
+        images = []
+        for sh in screenshot_slots(slide):
+            name = f"s{n}-{sh.shape_id}.{sh.image.ext}"
+            with open(os.path.join(outdir, name), "wb") as f:
+                f.write(sh.image.blob)
+            images.append({"id": sh.shape_id, "width": sh.width, "height": sh.height, "preview": name})
+        label = title_text(slide) or (texts[0]["text"].split("\n")[0] if texts else "")
+        result.append({"n": n, "title": label.strip()[:90], "texts": texts, "images": images})
+    print(json.dumps({"slides": result}, ensure_ascii=False))
+
+
+def set_text(shape, text):
+    """Replace a text frame line by line, one line per paragraph, keeping each paragraph's first-run formatting."""
+    tf = shape.text_frame
+    lines = text.split("\n")
+    paras = list(tf.paragraphs)
+    for i, line in enumerate(lines):
+        if i < len(paras):
+            p = paras[i]
+        else:
+            el = copy.deepcopy(paras[-1]._p)
+            paras[-1]._p.addnext(el)
+            p = tf.paragraphs[i]
+            paras = list(tf.paragraphs)
+        if p.runs:
+            set_runs(p, [line])
+        elif line:
+            run = p.add_run()
+            end = p._p.find(qn("a:endParaRPr"))
+            if end is not None:
+                rpr = copy.deepcopy(end)
+                rpr.tag = qn("a:rPr")
+                run._r.insert(0, rpr)
+            run.text = line
+    for extra in list(tf.paragraphs)[len(lines):]:
+        extra._p.getparent().remove(extra._p)
+
+
+def replace_picture(slide, old, file):
+    """Put `file` where `old` was: scaled to fit (contain) and centred in the old frame, same z-order."""
+    left, top, width, height = old.left, old.top, old.width, old.height
+    pic = slide.shapes.add_picture(file, left, top)
+    ratio = pic.width / pic.height
+    w, h = width, int(width / ratio)
+    if h > height:
+        h, w = height, int(height * ratio)
+    pic.width, pic.height = w, h
+    pic.left, pic.top = left + (width - w) // 2, top + (height - h) // 2
+    old._element.addprevious(pic._element)
+    remove_shape(old)
+
+
+def apply_intro(slides, kinds, intro):
+    """intro: [{"slide": n, "texts": {shape_id: text}, "images": {shape_id: path}}] — n counts the opening slides from 1."""
+    opening = intro_slides(slides, kinds)
+    changed = 0
+    for edit in intro or []:
+        n = int(edit.get("slide", 0))
+        if not 1 <= n <= len(opening):
+            sys.exit(f"error: intro slide {n} is not one of the {len(opening)} opening slides")
+        slide = opening[n - 1]
+        by_id = {sh.shape_id: sh for sh in iter_shapes(slide.shapes)}
+        for sid, text in (edit.get("texts") or {}).items():
+            sh = by_id.get(int(sid))
+            if sh is not None and sh.has_text_frame:
+                set_text(sh, text)
+                changed += 1
+        for sid, file in (edit.get("images") or {}).items():
+            sh = by_id.get(int(sid))
+            if sh is not None and is_screenshot(sh) and os.path.exists(file):
+                replace_picture(slide, sh, file)
+                changed += 1
+    return changed
+
+
 # ---------------------------------------------------------------- commands
 
 def cmd_inspect(path):
@@ -457,6 +575,8 @@ def cmd_build(path, content_path, out):
     if tpl_purpose is None or tpl_demo is None:
         sys.exit("error: could not find a Purpose + WHAT WE'LL DEMO story slide pair to use as a template")
 
+    intro_changes = apply_intro(slides, kinds, content.get("intro"))
+
     cover = content.get("cover") or {}
     if cover:
         cover_slide = slides[0]
@@ -493,7 +613,7 @@ def cmd_build(path, content_path, out):
 
     prs.save(out)
     print(f"wrote {out}: {len(stories)} stories, {len(new_slides)} story slides, "
-          f"removed {len(old_story)} old story slides")
+          f"removed {len(old_story)} old story slides, {intro_changes} opening-slide edits")
 
 
 def cmd_strip(path, out):
@@ -519,5 +639,7 @@ if __name__ == "__main__":
         cmd_build(*args[1:])
     elif args[:1] == ["strip"] and len(args) == 3:
         cmd_strip(*args[1:])
+    elif args[:1] == ["intro"] and len(args) == 3:
+        cmd_intro(*args[1:])
     else:
         sys.exit(__doc__)
