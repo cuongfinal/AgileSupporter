@@ -2,7 +2,7 @@ import type { RetroBoard, RetroCard, RetroFacts, RetroItem, Sprint, StatusCatego
 import { runAi } from "./ai";
 import { latestReview } from "./analysis";
 import { HttpError } from "./api";
-import { fieldIndex, listSprints, searchJql, statusCategories } from "./jira";
+import { ensureJiraFields, fieldIndex, listSprints, searchJql, statusCategories } from "./jira";
 import { startJob } from "./jobs";
 import { PROMPT_VERSION, retroPrompt, retroSchema } from "./prompts";
 import { getSettings } from "./settings";
@@ -67,7 +67,7 @@ async function velocity(sprint: Sprint, all: Sprint[], spField: string) {
 }
 
 export async function retroFacts(sprintId: number): Promise<RetroFacts> {
-  const s = getSettings();
+  const s = await ensureJiraFields();
   const { spField, flaggedField, acField } = s.jira;
   const { sprint, all } = await findSprint(sprintId);
   const [cats, fx] = await Promise.all([statusCategories(), fieldIndex()]);

@@ -1,7 +1,6 @@
 import type { Ticket } from "@/lib/types";
-import { searchTickets } from "./jira";
+import { ensureJiraFields, searchTickets } from "./jira";
 import { ESTIMATE_SCALE } from "./prompts";
-import { getSettings } from "./settings";
 import { readJson, safeName, writeJson } from "./store";
 
 export interface CalibrationStory {
@@ -45,7 +44,7 @@ export function contentWords(text: string): string[] {
 const text = (t: Pick<Ticket, "summary" | "acMd" | "descriptionMd">) => `${t.summary} ${t.acMd} ${t.descriptionMd}`.slice(0, 2500);
 
 async function load(projectKey: string): Promise<CalibrationStory[]> {
-  const sp = getSettings().jira.spField;
+  const sp = (await ensureJiraFields()).jira.spField;
   if (!sp) return [];
   const file = `cache/calibration/${safeName(projectKey)}.json`;
   const hit = readJson<{ v?: number; at: number; sp: string; items: CalibrationStory[] } | null>(file, null);

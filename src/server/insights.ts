@@ -1,6 +1,6 @@
 import type { StatusCategory } from "@/lib/types";
 import { HttpError } from "./api";
-import { listSprints, searchJql, statusCategories } from "./jira";
+import { ensureJiraFields, listSprints, searchJql, statusCategories } from "./jira";
 import { getSettings } from "./settings";
 
 interface SprintIssueLite {
@@ -18,7 +18,7 @@ interface SprintIssueLite {
 }
 
 async function sprintData(sprintId: number) {
-  const s = getSettings();
+  const s = await ensureJiraFields();
   const sprint = (await listSprints()).find((x) => x.id === sprintId);
   if (!sprint) throw new HttpError(404, "Sprint not found on this board");
   const cats = await statusCategories();

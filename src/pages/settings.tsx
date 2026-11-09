@@ -1,10 +1,11 @@
 import { Button, Input, Segmented, SegmentedItem, Spinner, Tag, Toggle } from "@/components/kit";
 import { AddIcon, CheckCircleIcon, DownloadIcon, RefreshIcon, SearchIcon, TrashIcon, UploadIcon } from "@/components/icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { Card, Field, JobProgress, Loader, PageHeader } from "@/components/ui";
 import { http, useJob } from "@/lib/client";
 import { Select } from "@/components/Select";
+import { type TreeNode, TreeSelect } from "@/components/TreeSelect";
 import { useT } from "@/lib/i18n";
 import { type CliStatus, useAiStatus, useRepoStatus, useSettings } from "@/lib/queries";
 import { toast } from "@/lib/toast";
@@ -86,7 +87,6 @@ function JiraSection({ s }: { s: PublicSettings }) {
   const save = useSave();
   const [jira, setJira] = useState(s.jira);
   const [boards, setBoards] = useState<{ id: number; name: string; type: string; projectKey: string }[] | null>(null);
-  const [candidates, setCandidates] = useState<Record<string, { id: string; name: string; filled: number }[]> | null>(null);
   const [token, setToken] = useState("");
   const qc = useQueryClient();
   const set = (k: keyof Settings["jira"], v: string) => setJira((j) => ({ ...j, [k]: v }));
@@ -117,28 +117,31 @@ function JiraSection({ s }: { s: PublicSettings }) {
     onSuccess: (b) => setBoards(b ?? []),
     onError: (e) => toast.fromError(t("settings.jiraFailed"), e),
   });
-  const detect = useMutation({
-    mutationFn: async () => {
-      await persist();
+  // Field mapping detects itself once Jira is reachable (and again when the site or board changes): empty fields are
+  // filled and saved server-side, fields someone typed are left alone, and the ranked candidates show as hints.
+  const fieldsKey = [s.jira.baseUrl, s.jira.email, s.jira.boardId, s.secrets["jira.token"].last4] as const;
+  const detect = useQuery({
+    queryKey: ["jira-fields", ...fieldsKey],
+    queryFn: async () => {
       const r = await http.post<{
-        spField: string;
-        acField: string;
-        flaggedField: string;
         sampled: number;
+        filled: ("spField" | "acField" | "flaggedField")[];
+        fields: Pick<Settings["jira"], "spField" | "acField" | "flaggedField">;
         candidates: Record<string, { id: string; name: string; filled: number }[]>;
       }>("/api/settings/detect-fields");
-      const fields = { spField: r.spField || jira.spField, acField: r.acField || jira.acField, flaggedField: r.flaggedField || jira.flaggedField };
-      await persist(fields);
-      return { r, fields };
+      if (r.filled.length) {
+        // Only fill what is still empty here too, so a value typed while detection ran is kept.
+        setJira((j) => ({ ...j, ...Object.fromEntries(r.filled.filter((k) => !j[k]).map((k) => [k, r.fields[k]])) }));
+        qc.setQueryData<PublicSettings>(["settings"], (cur) => (cur ? { ...cur, jira: { ...cur.jira, ...r.fields } } : cur));
+        void qc.invalidateQueries({ queryKey: ["health"] });
+      }
+      return r;
     },
-    onSuccess: ({ r, fields }) => {
-      setJira((j) => ({ ...j, ...fields }));
-      setCandidates(r.candidates);
-      void qc.invalidateQueries({ queryKey: ["health"] });
-      toast.success(t("settings.fieldsDetected"), r.sampled ? t("settings.fieldsSampled", { n: r.sampled }) : undefined);
-    },
-    onError: (e) => toast.fromError(t("settings.jiraFailed"), e),
+    enabled: !!(s.jira.baseUrl && s.jira.email && s.secrets["jira.token"].set),
+    staleTime: Infinity,
+    retry: false,
   });
+  const candidates = detect.data?.candidates;
 
   return (
     <Card
@@ -201,11 +204,22 @@ function JiraSection({ s }: { s: PublicSettings }) {
           ))}
         </div>
       )}
-      <div className="mt-5 flex items-center justify-between">
+      <div className="mt-5 flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-sm font-semibold text-ui-body">{t("settings.fieldMapping")}</h3>
-        <Button size="sm" variant="ghost" loading={detect.isPending} leftIcon={<RefreshIcon />} onClick={() => detect.mutate()}>
-          {t("settings.detectFields")}
-        </Button>
+        <span role="status" className="flex min-w-0 items-center gap-1.5 text-xs text-ui-secondary">
+          {detect.isFetching ? (
+            <>
+              <Spinner size="sm" decorative />
+              {t("settings.fieldsDetecting")}
+            </>
+          ) : detect.error ? (
+            <span className="text-ui-error">{t("settings.fieldsDetectFailed")}</span>
+          ) : detect.data ? (
+            detect.data.sampled ? t("settings.fieldsSampled", { n: detect.data.sampled }) : t("settings.fieldsAuto")
+          ) : (
+            !detect.isEnabled && t("settings.fieldsNeedJira")
+          )}
+        </span>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2">
         {(
@@ -879,19 +893,108 @@ function RecordingSettingsForm({ s }: { s: PublicSettings }) {
 }
 
 /** Time tracker: all per-user values live in ~/.dev-dashboard, the password as an encrypted secret. */
+type TaskNode = { id: string; name: string; kind: "project" | "folder" | "task"; children?: TaskNode[]; minutes?: number; lastDate?: string };
+type MyTasks = { tree: TaskNode[]; recent: string[] };
+
+/**
+ * Pick one of your assigned tasks from the project → work item → sub item tree. The ID next to it is read-only;
+ * it only becomes editable when the tree can't be loaded, so logging time never depends on the list.
+ */
+function TaskPicker({
+  label,
+  value,
+  onChange,
+  tasks,
+}: {
+  label: string;
+  value: string;
+  onChange: (id: string) => void;
+  tasks: { data?: MyTasks; loading: boolean; error: unknown; enabled: boolean };
+}) {
+  const { t } = useT();
+  const toTree = (n: TaskNode): TreeNode =>
+    n.children
+      ? { id: n.id, label: n.name, children: n.children.map(toTree) }
+      : {
+          id: n.id,
+          label: n.name,
+          hint: [`#${n.id}`, n.lastDate && t("logtime.taskUsed", { h: Math.round((n.minutes ?? 0) / 6) / 10, date: n.lastDate })].filter(Boolean).join(" · "),
+        };
+  const nodes = useMemo(() => (tasks.data?.tree ?? []).map(toTree), [tasks.data]); // eslint-disable-line react-hooks/exhaustive-deps
+  const known = useMemo(() => {
+    const ids = new Set<string>();
+    const walk = (n: TaskNode) => (n.children ? n.children.forEach(walk) : ids.add(n.id));
+    tasks.data?.tree.forEach(walk);
+    return ids;
+  }, [tasks.data]);
+  const fallback = !tasks.enabled || !!tasks.error;
+  const hint = !tasks.enabled
+    ? t("logtime.tasksNeedLogin")
+    : tasks.error
+      ? t("logtime.tasksFailed")
+      : tasks.data && !known.size
+        ? t("logtime.tasksNone")
+        : tasks.data && value && !known.has(value)
+          ? t("logtime.taskNotRecent")
+          : undefined;
+  return (
+    <Field label={label} hint={hint}>
+      <div className="flex gap-2">
+        <TreeSelect
+          className="min-w-0 flex-1"
+          nodes={nodes}
+          value={value}
+          onChange={onChange}
+          recent={tasks.data?.recent.slice(0, 5)}
+          recentLabel={t("logtime.tasksRecent")}
+          searchPlaceholder={t("logtime.taskSearch")}
+          emptyText={t("logtime.taskNoMatch")}
+          placeholder={value ? `#${value}` : t("logtime.taskPick")}
+          loading={tasks.loading}
+          disabled={!nodes.length}
+          aria-label={label}
+        />
+        <Input
+          size="sm"
+          className={`w-20 shrink-0 ${fallback ? "" : "bg-ui-surface text-ui-secondary cursor-default"}`}
+          inputMode="numeric"
+          readOnly={!fallback}
+          aria-label={`${label} (ID)`}
+          placeholder="ID"
+          value={value}
+          onChange={(e) => onChange(e.target.value.replace(/\D/g, ""))}
+        />
+      </div>
+    </Field>
+  );
+}
+
 function LogTimeForm({ s }: { s: PublicSettings }) {
   const { t } = useT();
   const save = useSave();
   const [f, setF] = useState(s.timeTracker);
-  const dirty = JSON.stringify(f) !== JSON.stringify(s.timeTracker);
+  // The user ID is read-only: the server finds and stores it at login (and ignores it in a settings save).
+  const editable = { ...f, userId: s.timeTracker.userId };
+  const dirty = JSON.stringify(editable) !== JSON.stringify(s.timeTracker);
+  // Your assigned tasks come from the time tracker itself, so they need a saved login; one sign-in per Settings visit.
+  const canLogin = !!(s.timeTracker.baseUrl && s.timeTracker.loginName && s.secrets["timetracker.password"].set);
+  const tasksQ = useQuery({
+    queryKey: ["tt-tasks", s.timeTracker.baseUrl, s.timeTracker.loginName, s.secrets["timetracker.password"].last4],
+    queryFn: () => http.get<MyTasks>("/api/logtime/tasks"),
+    enabled: canLogin,
+    staleTime: 10 * 60_000,
+    retry: false,
+  });
+  const taskList = { data: tasksQ.data, loading: tasksQ.isFetching, error: tasksQ.error, enabled: canLogin };
   const qc = useQueryClient();
   const test = useMutation({
     mutationFn: async () => {
-      if (dirty) await save.mutateAsync({ timeTracker: f });
+      if (dirty) await save.mutateAsync({ timeTracker: editable });
       return http.post<{ userId: string }>("/api/logtime/test");
     },
     onSuccess: (r) => {
-      // The server stored the user ID from the login response; reload settings so the field shows it.
+      // The server stored the user ID it found; show it in the form too, or the next Save would write the old value back.
+      setF((cur) => ({ ...cur, userId: r.userId }));
       void qc.invalidateQueries({ queryKey: ["settings"] });
       toast.success(t("logtime.loginOk"), t("logtime.userIdFound", { id: r.userId }));
     },
@@ -904,21 +1007,28 @@ function LogTimeForm({ s }: { s: PublicSettings }) {
       <Field label={t("logtime.baseUrl")}>
         <Input size="sm" fullWidth value={f.baseUrl} onChange={(e) => setF({ ...f, baseUrl: e.target.value })} />
       </Field>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      {/* Sign-in on one row: login name, password, and the user ID the server finds from them (read-only). */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)_7.5rem]">
         <Field label={t("logtime.loginName")}>
           <Input size="sm" fullWidth autoComplete="off" value={f.loginName} onChange={(e) => setF({ ...f, loginName: e.target.value })} />
         </Field>
+        <SecretInput name="timetracker.password" label={t("logtime.password")} s={s} />
         <Field label={t("logtime.userId")} hint={t("logtime.userIdHint")}>
-          <Input size="sm" fullWidth inputMode="numeric" value={f.userId} onChange={(e) => setF({ ...f, userId: e.target.value.trim() })} />
-        </Field>
-        <Field label={t("logtime.mainTask")}>
-          <Input size="sm" fullWidth inputMode="numeric" value={f.mainTaskId} onChange={(e) => setF({ ...f, mainTaskId: e.target.value.trim() })} />
-        </Field>
-        <Field label={t("logtime.kaizenTask")}>
-          <Input size="sm" fullWidth inputMode="numeric" value={f.kaizenTaskId} onChange={(e) => setF({ ...f, kaizenTaskId: e.target.value.trim() })} />
+          <Input
+            size="sm"
+            fullWidth
+            readOnly
+            title={t("logtime.userIdTitle")}
+            value={s.timeTracker.userId || f.userId}
+            placeholder={t("logtime.userIdEmpty")}
+            className="bg-ui-surface text-ui-secondary cursor-default"
+          />
         </Field>
       </div>
-      <SecretInput name="timetracker.password" label={t("logtime.password")} s={s} />
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <TaskPicker label={t("logtime.mainTask")} value={f.mainTaskId} onChange={(id) => setF({ ...f, mainTaskId: id })} tasks={taskList} />
+        <TaskPicker label={t("logtime.kaizenTask")} value={f.kaizenTaskId} onChange={(id) => setF({ ...f, kaizenTaskId: id })} tasks={taskList} />
+      </div>
       <div>
         <div className="text-label font-medium text-ui-body mb-1">{t("logtime.slots")}</div>
         <div className="space-y-2">
@@ -950,7 +1060,7 @@ function LogTimeForm({ s }: { s: PublicSettings }) {
         </div>
       </div>
       <div className="flex gap-2">
-        <Button size="sm" disabled={!dirty} loading={save.isPending} onClick={() => save.mutate({ timeTracker: f })}>
+        <Button size="sm" disabled={!dirty} loading={save.isPending} onClick={() => save.mutate({ timeTracker: editable })}>
           {t("common.save")}
         </Button>
         <Button

@@ -1,4 +1,4 @@
 import { api } from "@/server/api";
-import { detectFields } from "@/server/jira";
+import { autoDetectFields } from "@/server/jira";
 
-export default api({ POST: async () => detectFields() });
+export default api({ POST: async () => autoDetectFields() });

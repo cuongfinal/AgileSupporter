@@ -36,7 +36,7 @@ const patch = z
     timeTracker: z
       .object({
         baseUrl: z.union([z.literal(""), z.string().url()]),
-        userId: z.string().regex(/^\d*$/, "User ID must be a number"),
+        // userId is not accepted here: the server finds it at login (timeTracker.ts), so it is read-only in Settings.
         loginName: z.string().max(200),
         mainTaskId: z.string().regex(/^\d*$/, "Task ID must be a number"),
         kaizenTaskId: z.string().regex(/^\d*$/, "Task ID must be a number"),

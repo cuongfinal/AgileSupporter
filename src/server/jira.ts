@@ -2,7 +2,7 @@ import { adfToMarkdown } from "@/lib/adf";
 import type { Settings, Sprint, StatusCategory, Ticket } from "@/lib/types";
 import { HttpError } from "./api";
 import { getSecret } from "./secrets";
-import { getSettings } from "./settings";
+import { getSettings, updateSettings } from "./settings";
 
 type Json = Record<string, unknown>;
 
@@ -106,6 +106,43 @@ export async function detectFields() {
     sampled,
     candidates: { sp: spR, ac: acR, flagged: flagged.map((x) => ({ ...x, filled: 0 })) },
   };
+}
+
+type FieldKey = "spField" | "acField" | "flaggedField";
+const FIELD_KEYS: FieldKey[] = ["spField", "acField", "flaggedField"];
+const RETRY_MS = 5 * 60_000;
+/** One detection per Jira site + board; a failed one may be retried after RETRY_MS. */
+const detections = new Map<string, { at: number; run: Promise<Awaited<ReturnType<typeof detectFields>> | null> }>();
+
+/**
+ * Fills whichever of the story-point / acceptance-criteria / flagged fields are still empty with what detectFields picks,
+ * and saves them. Never overwrites a field someone set. Cheap to call before every Jira read: it detects at most once per
+ * site + board (again only after a failure), so the Settings "Detect" step is no longer needed.
+ */
+export async function ensureJiraFields(): Promise<Settings> {
+  const s = getSettings();
+  const { baseUrl, email, boardId } = s.jira;
+  if (!baseUrl || !email || FIELD_KEYS.every((k) => s.jira[k])) return s;
+  const key = `${baseUrl}|${email}|${boardId}`;
+  let hit = detections.get(key);
+  if (!hit || (Date.now() - hit.at > RETRY_MS && !(await hit.run))) {
+    hit = { at: Date.now(), run: detectFields().catch(() => null) };
+    detections.set(key, hit);
+  }
+  const r = await hit.run;
+  if (!r) return s;
+  const cur = getSettings();
+  const fill = Object.fromEntries(FIELD_KEYS.filter((k) => !cur.jira[k] && r[k]).map((k) => [k, r[k]]));
+  return Object.keys(fill).length ? updateSettings({ jira: { ...cur.jira, ...fill } }) : cur;
+}
+
+/** Detects and fills empty fields like ensureJiraFields, but always runs fresh and reports the candidates (Settings page). */
+export async function autoDetectFields() {
+  const r = await detectFields();
+  const cur = getSettings();
+  const fill = Object.fromEntries(FIELD_KEYS.filter((k) => !cur.jira[k] && r[k]).map((k) => [k, r[k]]));
+  const s = Object.keys(fill).length ? updateSettings({ jira: { ...cur.jira, ...fill } }) : cur;
+  return { ...r, filled: Object.keys(fill) as FieldKey[], fields: { spField: s.jira.spField, acField: s.jira.acField, flaggedField: s.jira.flaggedField } };
 }
 
 export async function listBoards(q: string) {
@@ -226,7 +263,7 @@ export function mapIssue(raw: Json, s: Settings): Ticket {
 }
 
 export async function sprintIssues(sprintId: number): Promise<Ticket[]> {
-  const s = getSettings();
+  const s = await ensureJiraFields();
   const out: Ticket[] = [];
   for (let startAt = 0; ; startAt += 100) {
     const j = await jiraFetch<{ total: number; issues: Json[] }>(`/rest/agile/1.0/sprint/${sprintId}/issue`, {
@@ -241,7 +278,7 @@ export async function sprintIssues(sprintId: number): Promise<Ticket[]> {
 }
 
 export async function getIssue(key: string): Promise<Ticket> {
-  const s = getSettings();
+  const s = await ensureJiraFields();
   const j = await jiraFetch<Json>(`/rest/api/3/issue/${encodeURIComponent(key)}`, { fields: issueFields(s) });
   return mapIssue(j, s);
 }
@@ -270,7 +307,7 @@ export async function searchJql(jql: string, fields: string[], expand?: string, 
 }
 
 export async function searchTickets(jql: string, limit = 100): Promise<Ticket[]> {
-  const s = getSettings();
+  const s = await ensureJiraFields();
   const raw = await searchJql(jql, issueFields(s).split(","), undefined, limit);
   return raw.map((r) => mapIssue(r as unknown as Json, s));
 }
