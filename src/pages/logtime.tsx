@@ -285,9 +285,13 @@ export default function LogTimePage() {
               const loggedDay = logged.data?.days[d];
               const plannedSlots = plannedSlotsFor(d);
               const plannedValid = timeSlotsSchema.safeParse(plannedSlots).success;
-              const difference = loggedDay && plannedValid ? Math.round(slotHours(plannedSlots) * 60) - loggedDay.minutes : 0;
+              const configuredSlots = q.data?.slots ?? [];
+              const configuredValid = timeSlotsSchema.safeParse(configuredSlots).success;
+              const configuredMinutes = configuredValid ? Math.round(slotHours(configuredSlots) * 60) : 0;
+              const coveredMinutes = overrides[d] && plannedValid ? Math.round(slotHours(plannedSlots) * 60) : loggedDay?.minutes;
+              const difference = loggedDay && configuredValid && coveredMinutes !== undefined ? configuredMinutes - coveredMinutes : 0;
               const differenceHours = String(Math.round(Math.abs(difference) / 60 * 100) / 100);
-              const needsAttention = on && plannedValid && !!loggedDay && !logged.error && Math.abs(difference) >= 0.5;
+              const needsAttention = on && configuredValid && plannedValid && !!loggedDay && !logged.error && Math.abs(difference) >= 0.5;
               return (
                 <li key={d} className={`min-w-0 rounded-md border px-3 py-2 text-sm ${needsAttention ? "border-ui-warning bg-ui-warning-surface" : on ? "border-ui-brand-soft bg-ui-brand-surface" : "border-ui-border bg-ui-raised text-ui-secondary"}`}>
                   <div className="flex items-center gap-2">
@@ -351,7 +355,7 @@ export default function LogTimePage() {
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <Button size="sm" variant="ghost" leftIcon={<AddIcon />} disabled={slots.length >= 24} onClick={() => setSlots(d, [...slots, { start: "17:00", end: "18:00", task: "main" }])}>{t("logtime.addSlot")}</Button>
                         <Button size="sm" variant="ghost" color="neutral" title={t("logtime.resetDay")} aria-label={t("logtime.resetDay")} disabled={!overrides[d]} onClick={() => {
-                          setOverrides((current) => ({ ...current, [d]: q.data?.slots ?? [] }));
+                          setOverrides((current) => ({ ...current, [d]: loggedSlotsFor(d) ?? q.data?.slots ?? [] }));
                           setArmed(false);
                         }}><RefreshIcon /></Button>
                       </div>
