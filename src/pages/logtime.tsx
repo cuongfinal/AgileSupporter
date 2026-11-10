@@ -4,7 +4,7 @@ import { useState } from "react";
 import { AddIcon, ChevronRightIcon, EditIcon, RefreshIcon, TrashIcon, WarningIcon } from "@/components/icons";
 import { Button, Checkbox, Input, Tag } from "@/components/kit";
 import { Select } from "@/components/Select";
-import { Card, Empty, Loader, PageHeader } from "@/components/ui";
+import { Card, ConfirmDelete, Empty, Loader, PageHeader } from "@/components/ui";
 import { http } from "@/lib/client";
 import { useT } from "@/lib/i18n";
 import { useSettings, useSprintPick, useSprints } from "@/lib/queries";
@@ -82,19 +82,36 @@ export default function LogTimePage() {
     weeks.set(week, group);
   }
   const chosen = days.filter((d) => !skipped.has(d));
-  const slotsFor = (date: string) => overrides[date] ?? q.data?.slots ?? [];
+  const loggedSlotsFor = (date: string): TimeSlot[] | undefined => {
+    const entries = logged.data?.days[date]?.entries;
+    if (!tt || !entries?.length) return undefined;
+    const slots: TimeSlot[] = [];
+    for (const entry of entries) {
+      const task = entry.workItemId === tt.mainTaskId ? "main" : entry.workItemId === tt.kaizenTaskId ? "kaizen" : null;
+      if (!task) return undefined;
+      slots.push({ start: entry.start, end: entry.end, task });
+    }
+    return slots;
+  };
+  const slotsFor = (date: string) => overrides[date] ?? loggedSlotsFor(date) ?? q.data?.slots ?? [];
+  const plannedSlotsFor = (date: string) => overrides[date] ?? q.data?.slots ?? [];
   const hoursFor = (date: string) => timeSlotsSchema.safeParse(slotsFor(date)).success ? slotHours(slotsFor(date)) : 0;
+  const plannedHoursFor = (date: string) => {
+    const slots = plannedSlotsFor(date);
+    return timeSlotsSchema.safeParse(slots).success ? slotHours(slots) : 0;
+  };
   const invalid = chosen.some((date) => !timeSlotsSchema.safeParse(slotsFor(date)).success);
   const hours = Math.round(chosen.reduce((total, date) => total + hoursFor(date), 0) * 100) / 100;
   const setSlots = (date: string, slots: TimeSlot[]) => {
     setOverrides((current) => ({ ...current, [date]: slots }));
     setArmed(false);
   };
+  const toggleEditing = (date: string) => setEditing((current) => current === date ? null : date);
 
   const submit = useMutation({
     mutationFn: () => http.post<{ days: number; entries: number; hours: number }>("/api/logtime/submit", {
       dates: chosen,
-      overrides: Object.fromEntries(chosen.filter((date) => overrides[date]).map((date) => [date, overrides[date]])),
+      overrides: Object.fromEntries(chosen.map((date) => [date, slotsFor(date)])),
     }),
     onSuccess: (res) => {
       setArmed(false);
@@ -104,6 +121,16 @@ export default function LogTimePage() {
     onError: (e) => {
       setArmed(false);
       toast.fromError(t("logtime.failed"), e);
+    },
+  });
+  const deleteEntries = useMutation({
+    mutationFn: (ids: string[]) => http.del<{ deleted: number }>(`/api/logtime/entries?ids=${encodeURIComponent(ids.join(","))}`),
+    onSuccess: ({ deleted }) => {
+      toast.success(t("logtime.deleteDone", { n: deleted }));
+    },
+    onError: (e) => toast.fromError(t("logtime.deleteFailed"), e),
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: ["logtime-entries"] });
     },
   });
 
@@ -207,19 +234,38 @@ export default function LogTimePage() {
           <div className="space-y-8">
             {[...weeks].map(([week, weekDays]) => {
               const selected = weekDays.filter((date) => !skipped.has(date));
-              const weekHours = Math.round(selected.reduce((total, date) => total + hoursFor(date), 0) * 100) / 100;
+              const weekHours = Math.round(selected.reduce((total, date) => total + plannedHoursFor(date), 0) * 100) / 100;
               const weekLoggedMinutes = !logged.error && weekDays.every((date) => logged.data?.days[date])
                 ? weekDays.reduce((total, date) => total + (logged.data?.days[date]?.minutes ?? 0), 0)
                 : null;
               const weekMatchesPlan = weekLoggedMinutes !== null
-                && selected.every((date) => timeSlotsSchema.safeParse(slotsFor(date)).success)
+                && selected.every((date) => timeSlotsSchema.safeParse(plannedSlotsFor(date)).success)
                 && Math.abs(weekLoggedMinutes - weekHours * 60) < 0.5;
               const formatDate = (date: string) => new Date(`${date}T00:00:00`).toLocaleDateString(lang === "vi" ? "vi-VN" : "en-GB", { day: "2-digit", month: "2-digit", year: "numeric" });
               const weekTitle = t("logtime.weekRange", { from: formatDate(weekDays[0]), to: formatDate(weekDays[weekDays.length - 1]) });
               return (
                 <section key={week} aria-labelledby={`week-${week}`} className="border-t border-ui-border pt-6 first:border-t-0 first:pt-0">
                   <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-l-4 border-ui-brand bg-ui-surface px-3 py-3">
-                    <h3 id={`week-${week}`} className="text-sm font-semibold text-ui-heading">{weekTitle}</h3>
+                    <div className="flex min-w-0 items-center gap-2">
+                      <Checkbox
+                        size="sm"
+                        aria-label={`${t("logtime.selectWeek")} ${weekTitle}`}
+                        title={`${t("logtime.selectWeek")} ${weekTitle}`}
+                        checked={selected.length === weekDays.length}
+                        indeterminate={selected.length > 0 && selected.length < weekDays.length}
+                        disabled={submit.isPending}
+                        onChange={(event) => {
+                          const next = new Set(skipped);
+                          for (const date of weekDays) {
+                            if (event.target.checked) next.delete(date);
+                            else next.add(date);
+                          }
+                          setSkipped(next);
+                          setArmed(false);
+                        }}
+                      />
+                      <h3 id={`week-${week}`} className="text-sm font-semibold text-ui-heading">{weekTitle}</h3>
+                    </div>
                     <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm tabular-nums">
                       <span className="font-medium text-ui-body">{t("logtime.planned")}: {t("logtime.total", { days: selected.length, hours: weekHours })}</span>
                       <span className={`font-semibold ${weekLoggedMinutes === null ? "text-ui-secondary" : weekMatchesPlan ? "text-ui-success-dark" : "text-ui-warning-dark"}`}>
@@ -237,8 +283,11 @@ export default function LogTimePage() {
               const slots = slotsFor(d);
               const valid = timeSlotsSchema.safeParse(slots).success;
               const loggedDay = logged.data?.days[d];
-              const difference = loggedDay && valid ? Math.round(slotHours(slots) * 60) - loggedDay.minutes : 0;
-              const needsAttention = on && valid && !!loggedDay && !logged.error && Math.abs(difference) >= 0.5;
+              const plannedSlots = plannedSlotsFor(d);
+              const plannedValid = timeSlotsSchema.safeParse(plannedSlots).success;
+              const difference = loggedDay && plannedValid ? Math.round(slotHours(plannedSlots) * 60) - loggedDay.minutes : 0;
+              const differenceHours = String(Math.round(Math.abs(difference) / 60 * 100) / 100);
+              const needsAttention = on && plannedValid && !!loggedDay && !logged.error && Math.abs(difference) >= 0.5;
               return (
                 <li key={d} className={`min-w-0 rounded-md border px-3 py-2 text-sm ${needsAttention ? "border-ui-warning bg-ui-warning-surface" : on ? "border-ui-brand-soft bg-ui-brand-surface" : "border-ui-border bg-ui-raised text-ui-secondary"}`}>
                   <div className="flex items-center gap-2">
@@ -258,22 +307,22 @@ export default function LogTimePage() {
                     <span className={`flex-1 ${on ? "" : "line-through"}`}>{dayName(d)}</span>
                   </label>
                     {on ? (
-                      <Tag size="sm" color={!valid ? "red" : needsAttention ? "orange" : "primary"}>
-                        {valid ? `${Math.round(slotHours(slots) * 100) / 100}h` : t("logtime.invalid")}
+                      <Tag size="sm" color={!valid && slots.length > 0 ? "red" : needsAttention ? "orange" : "primary"}>
+                        {slots.length === 0 ? "0h" : valid ? `${Math.round(slotHours(slots) * 100) / 100}h` : t("logtime.invalid")}
                       </Tag>
                     ) : (
                       <Tag size="sm" color="neutral">
                         {t("logtime.dayOff")}
                       </Tag>
                     )}
-                    <Button size="sm" variant="ghost" color="neutral" title={t("logtime.editDay")} aria-label={`${t("logtime.editDay")} ${dayName(d)}`} aria-expanded={editing === d} disabled={!on || submit.isPending} onClick={() => setEditing(editing === d ? null : d)}>
+                    <Button size="sm" variant="ghost" color="neutral" title={t("logtime.editDay")} aria-label={`${t("logtime.editDay")} ${dayName(d)}`} aria-expanded={editing === d} disabled={!on || submit.isPending || (canReadLogged && logged.isFetching && !logged.data)} onClick={() => toggleEditing(d)}>
                       <EditIcon />
                     </Button>
                   </div>
                   {needsAttention && (
                     <p className="mt-2 flex items-start gap-1.5 text-xs font-medium text-ui-warning-dark" role="status">
                       <WarningIcon size={14} className="shrink-0" />
-                      {t(difference > 0 ? "logtime.loggedShort" : "logtime.loggedOver", { hours: (Math.abs(difference) / 60).toFixed(2) })}
+                      {t(difference > 0 ? "logtime.loggedShort" : "logtime.loggedOver", { hours: differenceHours })}
                     </p>
                   )}
                   {on && editing !== d && <p className="mt-1 text-xs text-ui-secondary break-words"><span className="font-medium">{t("logtime.planned")}: </span>{slots.map((slot) => `${slot.start}–${slot.end} ${slot.task === "main" ? t("logtime.taskMain") : t("logtime.taskKaizen")}`).join(" · ")}</p>}
@@ -302,11 +351,7 @@ export default function LogTimePage() {
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <Button size="sm" variant="ghost" leftIcon={<AddIcon />} disabled={slots.length >= 24} onClick={() => setSlots(d, [...slots, { start: "17:00", end: "18:00", task: "main" }])}>{t("logtime.addSlot")}</Button>
                         <Button size="sm" variant="ghost" color="neutral" title={t("logtime.resetDay")} aria-label={t("logtime.resetDay")} disabled={!overrides[d]} onClick={() => {
-                          setOverrides((current) => {
-                            const next = { ...current };
-                            delete next[d];
-                            return next;
-                          });
+                          setOverrides((current) => ({ ...current, [d]: q.data?.slots ?? [] }));
                           setArmed(false);
                         }}><RefreshIcon /></Button>
                       </div>
@@ -320,25 +365,33 @@ export default function LogTimePage() {
                     ) : loggedDay.entries.length === 0 ? (
                       <p className={`text-xs ${needsAttention ? "font-medium text-ui-warning-dark" : "text-ui-secondary"}`}>{t("logtime.notLogged")}</p>
                     ) : (
-                      <details className="group border-l-2 border-ui-warning bg-ui-warning-surface px-3 py-2">
-                        <summary className="flex cursor-pointer list-none flex-wrap items-center gap-1.5 text-xs text-ui-warning-dark [&::-webkit-details-marker]:hidden">
-                          <ChevronRightIcon className="shrink-0 transition-transform group-open:rotate-90" />
-                          <span className="font-semibold">{t("logtime.loggedHours", { hours: (loggedDay.minutes / 60).toFixed(2) })}</span>
-                          <span className="text-ui-secondary">{t("logtime.loggedEntries", { n: loggedDay.entries.length })}</span>
-                        </summary>
-                        <ul className="mt-2 space-y-2">
-                          {loggedDay.entries.map((entry) => (
-                            <li key={entry.id} className="min-w-0 text-xs">
-                              <div className="flex flex-wrap items-center justify-between gap-1 text-ui-body">
-                                <span className="font-medium tabular-nums">{entry.start} - {entry.end}</span>
-                                <span>{t("logtime.entryHours", { hours: (entry.minutes / 60).toFixed(2) })}{entry.isLocked ? ` · ${t("logtime.locked")}` : ""}</span>
-                              </div>
-                              <p className="break-words text-ui-body">{entry.workItemName} <span className="text-ui-secondary">#{entry.workItemId}</span></p>
-                              <p className="break-words text-ui-secondary">{entry.projectName}</p>
-                            </li>
-                          ))}
-                        </ul>
-                      </details>
+                      <div className="flex min-w-0 items-start gap-1">
+                        <details className="group min-w-0 flex-1 border-l-2 border-ui-warning bg-ui-warning-surface px-3 py-2">
+                          <summary className="flex cursor-pointer list-none flex-wrap items-center gap-1.5 text-xs text-ui-warning-dark [&::-webkit-details-marker]:hidden">
+                            <ChevronRightIcon className="shrink-0 transition-transform group-open:rotate-90" />
+                            <span className="font-semibold">{t("logtime.loggedHours", { hours: (loggedDay.minutes / 60).toFixed(2) })}</span>
+                            <span className="text-ui-secondary">{t("logtime.loggedEntries", { n: loggedDay.entries.length })}</span>
+                          </summary>
+                          <ul className="mt-2 space-y-2">
+                            {loggedDay.entries.map((entry) => (
+                              <li key={entry.id} className="min-w-0 text-xs">
+                                <div className="flex flex-wrap items-center justify-between gap-1 text-ui-body">
+                                  <span className="font-medium tabular-nums">{entry.start} - {entry.end}</span>
+                                  <span className="flex items-center gap-1">
+                                    {t("logtime.entryHours", { hours: (entry.minutes / 60).toFixed(2) })}{entry.isLocked ? ` · ${t("logtime.locked")}` : ""}
+                                    <ConfirmDelete iconOnly label={t("logtime.deleteEntry")} disabled={entry.isLocked || deleteEntries.isPending} onConfirm={() => deleteEntries.mutate([entry.id])} />
+                                  </span>
+                                </div>
+                                <p className="break-words text-ui-body">{entry.workItemName} <span className="text-ui-secondary">#{entry.workItemId}</span></p>
+                                <p className="break-words text-ui-secondary">{entry.projectName}</p>
+                              </li>
+                            ))}
+                          </ul>
+                        </details>
+                        {!!loggedDay.entries.some((entry) => !entry.isLocked) && (
+                          <ConfirmDelete iconOnly label={t("logtime.deleteDayEntries")} disabled={deleteEntries.isPending || submit.isPending} onConfirm={() => deleteEntries.mutate(loggedDay.entries.filter((entry) => !entry.isLocked).map((entry) => entry.id))} />
+                        )}
+                      </div>
                     )}
                   </div>
                 </li>

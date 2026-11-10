@@ -258,6 +258,19 @@ export async function logTime(dates: string[], overrides: Record<string, TimeSlo
   return { days: days.length, entries: entries.length, hours: days.reduce((total, date) => total + slotHours(overrides[date] ?? t.slots), 0), response };
 }
 
+export async function deleteLoggedTime(entryIds: string[]): Promise<{ deleted: number }> {
+  if (!getSettings().features.logTime) throw new HttpError(403, "Log time is turned off (Settings → Features).");
+  const ids = [...new Set(entryIds)];
+  if (!ids.length || ids.length > 200 || ids.some((entryId) => !/^\d+$/.test(entryId))) {
+    throw new HttpError(400, "Invalid time-entry IDs.");
+  }
+  const t = config(false);
+  const { token, userId } = await login(t);
+  const id = rememberUserId(t, userId);
+  for (const entryId of ids) await call(t, API.timeEntriesBulk(id), { removes: entryId }, token);
+  return { deleted: ids.length };
+}
+
 /** Project → folders (work items) → tasks (sub items), as the time tracker's own picker shows them. */
 export interface TaskNode {
   id: string;
