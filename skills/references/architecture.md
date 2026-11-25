@@ -96,6 +96,23 @@ fetching hooks wrapping Apollo operations), `lib/apollo/queries/` and
 models). A UI change usually spans a component + its hook + the Apollo operation
 + possibly a mapper and a constant.
 
+## Design system (MDS)
+Both packages below count as standard MDS components — using them as-is is NOT a customization:
+- `@ocean-network-express/magenta-react` (+ `magenta-react-icons`) — the Magenta design system: Button, Input,
+  Textarea, Checkbox, Radio, Toggle, Select/SelectOption, Table (Thead/Tbody/Tr/Th/Td), Tag, Divider, Spinner,
+  IconButton, ButtonGroup, Stepper, Text, Indicator, …
+- `@ocean-network-express/om-ui` — the OM shared layer on top of it: OmLayout, PageTitle, ErrorPage, ReportViewer,
+  Spinner, Icon, IconButton, Divider, …
+
+What counts as a customization / deviation (DoR UI-06):
+- a new component in `frontend/src/components/**` for something MDS has no component for;
+- an MDS component restyled or re-behaved: wrapped with `styled(...)`, a `*.module.css` override, or props/DOM
+  patched to change its look, layout or interaction;
+- a new variant of an MDS component (size, colour, state) the package does not offer.
+Existing team wrappers (`frontend/src/components/common/` — table, modal, input, tooltip, toast, search,
+TableBaseWrapper with its module.css) are customizations already in place: reusing one unchanged is not a new
+customization, changing it is.
+
 ## Fast search starting points
 
 Given a story's domain nouns, these are good first greps per repo:

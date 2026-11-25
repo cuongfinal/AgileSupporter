@@ -11,7 +11,8 @@ import { startTracked, useJobTracker, useTrackedFor } from "@/lib/jobTracker";
 import SprintEstimate from "@/features/SprintEstimate";
 import { useSettings } from "@/lib/queries";
 import { toast } from "@/lib/toast";
-import type { Bilingual, Severity, Staleness, StoredEstimate, TaskSize, Ticket } from "@/lib/types";
+import { DOR_CRITERIA, type DorStatus, dorPassed } from "@/lib/dor";
+import type { Bilingual, DorItem, Severity, Staleness, StoredEstimate, TaskSize, Ticket } from "@/lib/types";
 
 interface EstimateView {
   ticket: Ticket;
@@ -49,6 +50,14 @@ const SIZE_COLOR: Record<TaskSize, "neutral" | "blue" | "secondary" | "orange" |
   XL: "red",
 };
 const CONF_COLOR: Record<Severity, "green" | "orange" | "red"> = { high: "green", medium: "orange", low: "red" };
+const DOR_COLOR: Record<DorStatus, "green" | "orange" | "red" | "neutral" | "secondary"> = {
+  pass: "green",
+  partial: "orange",
+  fail: "red",
+  not_verifiable: "secondary",
+  na: "neutral",
+};
+const DOR_NAME = new Map<string, string>(DOR_CRITERIA.map((c) => [c.id, c.name]));
 
 function estimateMarkdown(e: StoredEstimate, pick: (b: Bilingual) => string, t: (k: MessageKey, v?: Record<string, string | number>) => string) {
   const list = (title: string, items: string[]) => (items.length ? [`**${title}**`, ...items.map((i) => `- ${i}`), ""] : []);
@@ -66,6 +75,14 @@ function estimateMarkdown(e: StoredEstimate, pick: (b: Bilingual) => string, t: 
     ),
     ...list(t("estimate.reasons"), e.reasons.map((r) => `${effect[r.effect]} ${pick(r)}`)),
     ...list(t("estimate.references"), e.references.map((r) => `${r.key} (${r.points} pts) ${r.summary} — ${pick(r.why)}`)),
+    ...(e.dor && e.dorStage
+      ? list(
+          `${t("estimate.dor")}: ${t(`estimate.dor.stage.${e.dorStage}` as MessageKey)}`,
+          e.dor
+            .filter((d) => !dorPassed(d.status))
+            .map((d) => `${d.id} ${DOR_NAME.get(d.id) ?? ""} — ${t(`estimate.dor.${d.status}` as MessageKey)}: ${pick(d.note)}`),
+        )
+      : []),
     ...list(t("estimate.split"), e.split.map(pick)),
     ...list(t("estimate.risks"), e.risks.map(pick)),
     ...list(t("estimate.questions"), e.questions.map(pick)),
@@ -89,6 +106,48 @@ function BiList({ items }: { items: Bilingual[] }) {
         <li key={i}>{pick(x)}</li>
       ))}
     </ul>
+  );
+}
+
+function DorCard({ items, stage }: { items: DorItem[]; stage: NonNullable<StoredEstimate["dorStage"]> }) {
+  const { t, pick } = useT();
+  const [all, setAll] = useState(false);
+  const gaps = items.filter((d) => !dorPassed(d.status));
+  const shown = all ? items : gaps;
+  return (
+    <Card
+      title={t("estimate.dor")}
+      actions={
+        <div className="flex items-center gap-2">
+          <Tag size="sm" color={stage === "ready_for_technical_refinement" ? "green" : "orange"} variant="light">
+            {t(`estimate.dor.stage.${stage}` as MessageKey)}
+          </Tag>
+          <Button size="sm" variant="ghost" color="neutral" onClick={() => setAll(!all)}>
+            {all ? t("estimate.dor.gapsOnly") : t("estimate.dor.showAll", { n: items.length })}
+          </Button>
+        </div>
+      }
+    >
+      <p className="text-xs text-ui-secondary m-0">
+        {t("estimate.dor.counts", { pass: items.length - gaps.length, total: items.length, gaps: gaps.length })}
+      </p>
+      {shown.length === 0 ? (
+        <p className="text-sm text-ui-success mt-2 mb-0">{t("estimate.dor.noGaps")}</p>
+      ) : (
+        <ul className="list-none p-0 m-0 mt-2 divide-y divide-ui-border">
+          {shown.map((d) => (
+            <li key={d.id} className="py-2 grid grid-cols-[64px_minmax(0,1fr)_auto] gap-3 items-start text-sm">
+              <span className="font-semibold text-ui-primary">{d.id}</span>
+              <span>
+                <span className="font-medium text-ui-primary">{DOR_NAME.get(d.id)}</span>
+                <span className="block text-label text-ui-body mt-0.5">{pick(d.note)}</span>
+              </span>
+              <Tag size="sm" color={DOR_COLOR[d.status]} variant="light">{t(`estimate.dor.${d.status}` as MessageKey)}</Tag>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Card>
   );
 }
 
@@ -294,6 +353,8 @@ function Detail({ ticketKey, code, canCode }: { ticketKey: string; code: boolean
               )}
             </Card>
           </div>
+
+          {e.dor && e.dorStage && <DorCard items={e.dor} stage={e.dorStage} />}
 
           {(e.split.length > 0 || e.risks.length > 0 || e.assumptions.length > 0 || e.questions.length > 0) && (
             <Card>

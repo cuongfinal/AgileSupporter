@@ -122,6 +122,21 @@ three main repos), and builds the Sprint Review demo slides + demo script with t
   distribution + median, the 12 most similar stories (word overlap, same epic/label bonus) with an excerpt, and the
   rest as one-liners. Procedure: pick references by size of change → anchor on their median → adjust ≤ 1 step for a
   named difference → prefer the lower value; routine work (tests, QA, review) never adds points.
+- Definition of Ready check (criteria in `src/lib/dor.ts`, from the team's DoR assessment doc), done before picking the
+  number: 22 criteria that affect estimate accuracy (US-02…10, UI-01…06, AC-01…04, SOL-02/03/06; US-01, SOL-01 and
+  SOL-04/05 are left out — wording only / produced by the estimate / Technical Refinement comes later). Each gets
+  pass · partial · fail · not verifiable · N/A with a one-line note. Gaps never add points: size-relevant gaps lower
+  confidence, may raise `high` one step and become questions; format-only gaps (Gherkin, governance evidence, design
+  link) are just reported. The server fills skipped criteria as not verifiable and derives the stage (all Stage 1 pass
+  → Ready for Technical Refinement, else Needs Backlog Refinement). Attachment names go into the prompt as design evidence.
+  Card shows gaps by default (toggle for all); gaps are in the copied Markdown.
+- UI-06 (MDS alignment) in detail: the AI decides whether the UI needs only standard MDS components or a customized /
+  deviating one. What MDS is (`magenta-react` + `om-ui`) and what counts as a customization (new local component,
+  `styled(...)` / module.css override, new variant, changing a `components/common` wrapper) lives in the
+  "Design system (MDS)" section of `skills/references/architecture.md`; that section is sent even in ticket-only mode.
+  Code-aware: checks the changed screen's imports and overrides in the frontend. Its DoR note names each
+  customized component, the reason, the main risk and whether it is agreed with UI/UX + tech. A customization the
+  references did not have is a named difference (≤ 1 step like any other); UI-06 not pass never adds points.
 - Anchor guard (server): the final points stay within one step of the median Jira points of the references the AI
   picked (made-up references are dropped); the UI shows the anchor and "AI proposed X → Y" when it was clamped.
 - Backtest 2026-11-03 (5 done stories, ticket only): exact on 5 and 8 pts, +1 step on 1/2/3-pt stories; code-aware

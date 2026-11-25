@@ -1,3 +1,5 @@
+import type { DorId, DorStage, DorStatus } from "./dor";
+
 export type Lang = "en" | "vi";
 export type Bilingual = { en: string; vi: string };
 export type AiProvider = "claude" | "copilot";
@@ -205,6 +207,13 @@ export interface StoredTests {
 
 export type TaskSize = "XS" | "S" | "M" | "L" | "XL";
 
+export interface DorItem {
+  id: DorId;
+  status: DorStatus;
+  /** Evidence for pass/na, otherwise the gap and the action to close it. */
+  note: Bilingual;
+}
+
 export interface StoredEstimate {
   key: string;
   title: string;
@@ -230,6 +239,10 @@ export interface StoredEstimate {
   assumptions: Bilingual[];
   questions: Bilingual[];
   split: Bilingual[];
+  /** Definition of Ready check, one item per criterion in DOR_CRITERIA; missing on estimates made before it existed. */
+  dor?: DorItem[];
+  /** Derived on the server from `dor`: all Stage 1 criteria pass → ready for Technical Refinement. */
+  dorStage?: DorStage;
   references: { key: string; points: number; why: Bilingual; summary: string }[];
   calibrationCount: number;
   codeAware: boolean;

@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import { DOR_CRITERIA, dorStage } from "@/lib/dor";
 import type { StoredEstimate, Ticket } from "@/lib/types";
 import { cacheGet, cacheSet, latestGet, latestSet, logUsage, runAi } from "./ai";
 import { contentHash, latestReview, latestSummary, staleness } from "./analysis";
@@ -74,6 +75,9 @@ export async function estimate(t: Ticket, force: boolean, code: boolean): Promis
       return { estimate: fresh, cached: true };
     }
   }
+  const architecture = readSkillFile("references", "architecture.md");
+  // DoR UI-06 needs to know what MDS is even when the code is not read, so its section is sent on its own then.
+  const designSystem = architecture.match(/^## Design system \(MDS\)\n[\s\S]*?(?=^## |(?![\s\S]))/m)?.[0].trim() ?? "";
   const { data } = await runAi({
     task: "estimate",
     prompt: estimatePrompt(
@@ -81,7 +85,8 @@ export async function estimate(t: Ticket, force: boolean, code: boolean): Promis
       latestSummary(t.key),
       review,
       repos.map((r) => ({ key: r.key, dir: r.dir, path: r.path, branch: r.status.branch })),
-      code ? readSkillFile("references", "architecture.md") : "",
+      code ? architecture : "",
+      code ? "" : designSystem,
       cal,
       getSettings().glossary,
     ),
@@ -94,6 +99,11 @@ export async function estimate(t: Ticket, force: boolean, code: boolean): Promis
   const references = data.references
     .filter((r) => known.has(r.key))
     .map((r) => ({ ...r, points: known.get(r.key)!.points, summary: known.get(r.key)!.summary }));
+  // One item per criterion, in DoR order; a criterion the model skipped counts as not verified, never as passed.
+  const dorById = new Map(data.dor.map((d) => [d.id, d]));
+  const dor = DOR_CRITERIA.map(
+    (c) => dorById.get(c.id) ?? { id: c.id, status: "not_verifiable" as const, note: { en: "Not assessed.", vi: "Chưa được đánh giá." } },
+  );
   const aiPoints = snap(data.points);
   // Guard against the usual LLM inflation: stay within one step of the references the model itself picked.
   const anchor = anchorOf(references.map((r) => r.points));
@@ -110,6 +120,8 @@ export async function estimate(t: Ticket, force: boolean, code: boolean): Promis
     low: Math.min(Math.max(snap(data.low), step(points, -1)), points),
     high: Math.max(Math.min(snap(data.high), step(points, 1)), points),
     references,
+    dor,
+    dorStage: dorStage(dor),
     calibrationCount: cal.total,
     teamMedian: cal.median,
     codeAware: code,

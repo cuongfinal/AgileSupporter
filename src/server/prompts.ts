@@ -1,8 +1,9 @@
 import { z } from "zod";
 import type { GlossaryEntry, RetroFacts, RetroItem, Ticket, TicketSummary } from "@/lib/types";
+import { DOR_CRITERIA, DOR_IDS, DOR_STATUSES } from "@/lib/dor";
 import type { Calibration } from "./calibration";
 
-export const PROMPT_VERSION = { summary: 1, review: 1, demo: 1, spec: 1, tests: 1, estimate: 4, retro: 2 };
+export const PROMPT_VERSION = { summary: 1, review: 1, demo: 1, spec: 1, tests: 1, estimate: 8, retro: 2 };
 
 const bi = z.object({ en: z.string(), vi: z.string() });
 
@@ -144,6 +145,8 @@ export const ESTIMATE_SCALE = [0.5, 1, 2, 3, 5, 8, 13, 21];
 // References come first so the model commits to its comparison before it picks a number.
 export const estimateSchema = z.object({
   references: z.array(z.object({ key: z.string(), points: z.number(), why: bi })),
+  // Definition of Ready — checked before the number so readiness gaps land in confidence/range, not in a vague bump.
+  dor: z.array(z.object({ id: z.enum(DOR_IDS), status: z.enum(DOR_STATUSES), note: bi })),
   points: z.number(),
   low: z.number(),
   high: z.number(),
@@ -183,6 +186,7 @@ export function estimatePrompt(
   review: ReviewContext,
   repos: { key: string; dir: string; path: string; branch: string }[],
   architecture: string,
+  designSystem: string,
   cal: Calibration,
   glossary: GlossaryEntry[],
 ): string {
@@ -201,13 +205,38 @@ export function estimatePrompt(
     "2. Anchor on their points (the median if they differ; the lower middle value when there is an even count).",
     "   Size cues: a static option list, label/format change or display-only field is usually the team's smallest stories; " +
       "a new editable flow with validation and save is mid-size; new persistence/contracts across services is the upper end.",
-    "3. Adjust from the anchor by AT MOST one step on the scale, and only for a concrete difference you can name " +
-      "(e.g. 'also needs a new gRPC field end-to-end', or 'the component already exists'). No concrete difference → keep the anchor.",
-    "4. When torn between two values, choose the LOWER one. Do not round up for safety — uncertainty goes into `confidence`, `low`/`high`, risks and questions.",
-    "5. Never add points for routine work every reference story also had: unit tests, QA/verification, code review, PR, deployment, " +
+    "3. Definition of Ready check: assess EVERY criterion in '## Definition of Ready criteria' below and put one item per id in `dor`. " +
+      "Status pass (sufficient evidence in the ticket), partial (some information but incomplete or unclear), fail (missing or contradicted), " +
+      "not_verifiable (the evidence would be in a design/attachment/link you cannot open), na (genuinely does not apply, e.g. UI-* when the story " +
+      "has no UI impact — never use na just because information is missing). Be evidence-based: a criterion merely mentioned without detail is not pass; " +
+      "do not invent requirements, designs or decisions. INVEST is a quality judgement, not a keyword check.",
+    "   Effect on points: readiness gaps NEVER add points. A gap that makes the size uncertain (US-05, US-06, US-08, US-09, US-10, UI-03, UI-05, " +
+      "UI-06, AC-01, AC-03, AC-04, SOL-03, SOL-06 partial/fail/not_verifiable) lowers `confidence`, may raise `high` one step, and becomes a " +
+      "`questions` item. Format-only gaps (AC-02 Gherkin, UI-02 governance evidence, UI-04 link) do not change confidence — just report them. " +
+      "US-06 fail → propose a `split`.",
+    "   UI-06 MDS alignment in detail: if the story has UI work, decide whether the proposed UI uses only standard MDS " +
+      "(Design System) components or needs a customized / deviating one. Which packages are MDS and what counts as a customization " +
+      "is defined in the 'Design system (MDS)' notes — follow them, do not guess." +
+      (codeAware
+        ? " Verify in the frontend: find the screen/component the story changes, check its imports (MDS package vs local component), " +
+          "and look for styled(...) / module.css overrides or an existing wrapper in components/common that the change would reuse or modify."
+        : " Without code access, judge only from what the ticket states (component names, 'use the existing …', 'custom …')."),
+    "   UI-06 is pass when only standard MDS components are needed or every customization is agreed and documented; partial/fail when a " +
+      "customization has no documented reason, risk review or UI/UX + tech agreement; not_verifiable when the design does not show which " +
+      "components are used; na when there is no UI impact. Its note names each customized component, why it is needed, the main risk " +
+      "(UI consistency, accessibility, responsiveness, maintainability, future MDS compatibility) and whether it is agreed.",
+    "   Effect on points: a customized component the reference stories did not have (building or overriding it, extra accessibility/responsive " +
+      "work, keeping it MDS-compatible) is a concrete difference for step 4 — name it in `reasons`. Standard MDS only → no extra points " +
+      "(reusing existing components can pull DOWN). UI-06 not pass → do NOT add points for a guess: " +
+      "lower `confidence`, raise `high` one step, and add a question (which component, why, agreed with UI/UX and TA?) — DoR says the story is not Ready until resolved.",
+    "4. Adjust from the anchor by AT MOST one step on the scale, and only for a concrete difference you can name " +
+      "(e.g. 'also needs a new gRPC field end-to-end', 'needs a customized MDS table with sticky columns', or 'the component already exists'). " +
+      "No concrete difference → keep the anchor.",
+    "5. When torn between two values, choose the LOWER one. Do not round up for safety — uncertainty goes into `confidence`, `low`/`high`, risks and questions.",
+    "6. Never add points for routine work every reference story also had: unit tests, QA/verification, code review, PR, deployment, " +
       "reading/understanding code, small UI wiring. The references' points already include all of that.",
     codeAware
-      ? "6. Code findings matter only as a DIFFERENCE from the references: many touched files is not big if each change is mechanical; " +
+      ? "7. Code findings matter only as a DIFFERENCE from the references: many touched files is not big if each change is mechanical; " +
         "existing logic you can reuse pulls the estimate DOWN. Do not let a long task list inflate the number."
       : "",
     "",
@@ -220,18 +249,25 @@ export function estimatePrompt(
     "- summary: the fuller analysis paragraph (what exists, what changes, where the effort goes).",
     "- confidence: low when the AC is unclear, references are weak matches, or the code impact is uncertain.",
     "- split: only if points ≥ 8, how to split the story (one item per part); otherwise [].",
+    "- dor[].note: one short sentence — the evidence for pass/na, otherwise the gap and the action needed to close it.",
     "- risks, assumptions, questions: short, concrete, only what matters for the estimate.",
     "- inScope: project keys this story touches.",
     BILINGUAL_RULE,
     "",
+    "## Definition of Ready criteria",
+    ...DOR_CRITERIA.map((c) => `- ${c.id} ${c.name}: ${c.check}`),
+    "",
     calibrationBlock(cal),
     codeAware ? `## Repos (read-only)\n${repos.map((r) => `- ${r.dir} (key: ${r.key}): ${r.path} — branch ${r.branch}`).join("\n")}\n` : "",
     codeAware && architecture ? `## Architecture notes\n${architecture}\n` : "",
+    designSystem ? `${designSystem}\n` : "",
     glossaryBlock(glossary),
     summary ? `## Existing summary\n${summary.en.summary}\n` : "",
     reviewBlock(review, "Earlier code-aware review"),
     // Hide the current Jira estimate so it doesn't anchor the AI.
     ticketBlock({ ...t, points: null }),
+    // Attachment names are evidence for wireframe/design criteria (UI-01, UI-03, UI-04); their content is not readable here.
+    t.attachments.length ? `\n### Attachments (names only — content not accessible)\n${t.attachments.map((a) => `- ${a.filename}`).join("\n")}` : "",
   ].join("\n");
 }
 
